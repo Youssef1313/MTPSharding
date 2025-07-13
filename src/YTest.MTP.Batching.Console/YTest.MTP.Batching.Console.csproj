@@ -8,4 +8,8 @@
     <ToolCommandName>mtp-batch</ToolCommandName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\YTest.MTP.PipeProtocol\YTest.MTP.PipeProtocol.csproj" />
+  </ItemGroup>
+
 </Project>
