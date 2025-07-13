@@ -1,0 +1,25 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="nuget.config" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/YTest.MTP.Batching/YTest.MTP.Batching.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/YTest.MTP.Batching.Tests/YTest.MTP.Batching.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/MTPBatchingSample/MTPBatchingSample.MSTest.csproj" />
+  </Folder>
+</Solution>
