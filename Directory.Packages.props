@@ -5,6 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageVersion Include="MSTest" Version="3.9.3" />
+    <PackageVersion Include="MSTest" Version="3.10.1" />
   </ItemGroup>
 </Project>
