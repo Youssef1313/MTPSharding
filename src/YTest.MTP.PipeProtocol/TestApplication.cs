@@ -41,8 +41,8 @@ internal sealed class TestApplication : IDisposable
     {
         var processStartInfo = CreateProcessStartInfo(_pathToExe, _arguments, _workingDirectory);
 
-        _testAppPipeConnectionLoop = Task.Run(async () => await WaitConnectionAsync(_cancellationToken.Token), _cancellationToken.Token);
-        var testProcessResult = await StartProcess(processStartInfo);
+        _testAppPipeConnectionLoop = Task.Run(async () => await WaitConnectionAsync(_cancellationToken.Token).ConfigureAwait(false), _cancellationToken.Token);
+        var testProcessResult = await StartProcess(processStartInfo).ConfigureAwait(false);
 
         WaitOnTestApplicationPipeConnectionLoop();
 
@@ -56,7 +56,8 @@ internal sealed class TestApplication : IDisposable
             FileName = pathToExe,
             Arguments = $"{arguments} --server dotnettestcli --dotnet-test-pipe {_pipeNameDescription.Name}",
             RedirectStandardOutput = true,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            UseShellExecute = false,
         };
 
         if (!string.IsNullOrEmpty(workingDirectory))
@@ -82,7 +83,7 @@ internal sealed class TestApplication : IDisposable
                 NamedPipeServer pipeConnection = new(_pipeNameDescription, OnRequest, NamedPipeServerStream.MaxAllowedServerInstances, token, skipUnknownMessages: true);
                 pipeConnection.RegisterAllSerializers();
 
-                await pipeConnection.WaitConnectionAsync(token);
+                await pipeConnection.WaitConnectionAsync(token).ConfigureAwait(false);
                 _testAppPipeConnections.Add(pipeConnection);
             }
         }
@@ -152,7 +153,7 @@ internal sealed class TestApplication : IDisposable
         handshakeMessage.Properties.TryGetValue(HandshakeMessagePropertyNames.SupportedProtocolVersions, out string? protocolVersions);
 
         string version = string.Empty;
-        if (protocolVersions is not null && protocolVersions.Split(";").Contains(ProtocolConstants.Version))
+        if (protocolVersions is not null && protocolVersions.Split(';').Contains(ProtocolConstants.Version))
         {
             version = ProtocolConstants.Version;
         }
@@ -170,15 +171,26 @@ internal sealed class TestApplication : IDisposable
             { HandshakeMessagePropertyNames.SupportedProtocolVersions, version }
         });
 
-    private async Task<int> StartProcess(ProcessStartInfo processStartInfo)
+    private
+#if NET
+        async
+#endif
+        Task<int> StartProcess(ProcessStartInfo processStartInfo)
     {
         var process = Process.Start(processStartInfo)!;
         StoreOutputAndErrorData(process);
-        await process.WaitForExitAsync();
-
+#if NET
+        await process.WaitForExitAsync().ConfigureAwait(false);
+#else
+        process.WaitForExit();
+#endif
         TestProcessExited?.Invoke(this, new TestProcessExitEventArgs { OutputData = _outputData, ErrorData = _errorData, ExitCode = process.ExitCode });
 
+#if NET
         return process.ExitCode;
+#else
+        return Task.FromResult(process.ExitCode);
+#endif
     }
 
     private void StoreOutputAndErrorData(Process process)

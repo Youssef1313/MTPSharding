@@ -1,9 +1,9 @@
-﻿#if NETCOREAPP
-using System;
+﻿using System;
+#if NET
 using System.Buffers;
+#endif
 using System.IO;
 using System.Text;
-#endif
 
 namespace YTest.MTP.PipeProtocol;
 
@@ -32,11 +32,7 @@ internal abstract class BaseSerializer
         byte[] bytes = ArrayPool<byte>.Shared.Rent(size);
         try
         {
-#if NET7_0_OR_GREATER
             stream.ReadExactly(bytes, 0, size);
-#else
-            _ = stream.Read(bytes, 0, size);
-#endif
             return Encoding.UTF8.GetString(bytes, 0, size);
         }
         finally
@@ -165,10 +161,10 @@ internal abstract class BaseSerializer
     protected static string ReadString(Stream stream)
     {
         byte[] len = new byte[sizeof(int)];
-        stream.Read(len, 0, len.Length);
+        _ = stream.Read(len, 0, len.Length);
         int length = BitConverter.ToInt32(len, 0);
         byte[] bytes = new byte[length];
-        stream.Read(bytes, 0, bytes.Length);
+        _ = stream.Read(bytes, 0, bytes.Length);
         return Encoding.UTF8.GetString(bytes);
     }
 
@@ -218,7 +214,7 @@ internal abstract class BaseSerializer
     protected static int ReadInt(Stream stream)
     {
         byte[] bytes = new byte[sizeof(int)];
-        stream.Read(bytes, 0, bytes.Length);
+        _ = stream.Read(bytes, 0, bytes.Length);
         return BitConverter.ToInt32(bytes, 0);
     }
 
@@ -237,14 +233,14 @@ internal abstract class BaseSerializer
     protected static long ReadLong(Stream stream)
     {
         byte[] bytes = new byte[sizeof(long)];
-        stream.Read(bytes, 0, bytes.Length);
+        _ = stream.Read(bytes, 0, bytes.Length);
         return BitConverter.ToInt64(bytes, 0);
     }
 
     protected static ushort ReadShort(Stream stream)
     {
         byte[] bytes = new byte[sizeof(ushort)];
-        stream.Read(bytes, 0, bytes.Length);
+        _ = stream.Read(bytes, 0, bytes.Length);
         return BitConverter.ToUInt16(bytes, 0);
     }
 
@@ -257,7 +253,7 @@ internal abstract class BaseSerializer
     protected static bool ReadBool(Stream stream)
     {
         byte[] bytes = new byte[sizeof(bool)];
-        stream.Read(bytes, 0, bytes.Length);
+        _ = stream.Read(bytes, 0, bytes.Length);
         return BitConverter.ToBoolean(bytes, 0);
     }
 #endif

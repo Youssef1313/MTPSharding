@@ -39,7 +39,7 @@ public sealed class MTPPipeDiscoverer
         _testApplication.DiscoveredTestsReceived += onDiscovered;
         try
         {
-            await _testApplication.RunAsync();
+            await _testApplication.RunAsync().ConfigureAwait(false);
         }
         finally
         {

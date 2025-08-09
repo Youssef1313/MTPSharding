@@ -32,7 +32,7 @@ public sealed class MTPPipeRunner
     // TODO: Replace these parameters with a TestApplicationRunParameters class to encapsulate them
     public MTPPipeRunner(string pathToExe, string arguments, List<string> testNodeUids, string? workingDirectory = null)
     {
-        var filter = $"--filter-uid {string.Join(',', testNodeUids)}";
+        var filter = $"--filter-uid {string.Join(",", testNodeUids)}";
         // TODO: If too long, write to a temp rsp file and pass the rsp file with "@".
         // TODO: Escape testNodeUids. The escaping logic could be reused from https://github.com/dotnet/sdk/blob/a9c5b0cb6d9e37f97e13c2d10dd2044dbc9d94be/src/RazorSdk/Tool/CommandLine/ArgumentEscaper.cs#L23
         _testApplication = new TestApplication(pathToExe, $"{arguments} {filter}", workingDirectory);
@@ -67,7 +67,7 @@ public sealed class MTPPipeRunner
         _testApplication.TestResultsReceived += onTestResult;
         try
         {
-            await _testApplication.RunAsync();
+            await _testApplication.RunAsync().ConfigureAwait(false);
         }
         finally
         {

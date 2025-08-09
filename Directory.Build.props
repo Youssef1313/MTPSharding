@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
 
   <PropertyGroup>
     <UseArtifactsOutput>true</UseArtifactsOutput>
@@ -26,4 +26,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
+  <ItemGroup>
+    <GlobalPackageReference Include="PolySharp" />
+  </ItemGroup>
 </Project>
