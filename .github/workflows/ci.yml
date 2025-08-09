@@ -43,7 +43,7 @@ jobs:
         run: dotnet build --no-restore --configuration ${{ matrix.configuration }} -bl:artifacts/log/build.binlog
 
       - name: Test
-        run: dotnet test --no-build --configuration ${{ matrix.configuration }} -bl:artifacts/log/test.binlog
+        run: dotnet test --no-build --no-progress --configuration ${{ matrix.configuration }} -bl:artifacts/log/test.binlog
 
       - name: Pack
         run: dotnet pack --no-build --configuration ${{ matrix.configuration }} -bl:artifacts/log/pack.binlog
