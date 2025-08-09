@@ -6,6 +6,5 @@
 
   <ItemGroup>
     <PackageVersion Include="MSTest" Version="3.10.1" />
-    <PackageVersion Include="PolySharp" Version="1.15.0" />
   </ItemGroup>
 </Project>

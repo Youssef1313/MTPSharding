@@ -27,6 +27,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <GlobalPackageReference Include="PolySharp" />
+    <GlobalPackageReference Include="PolySharp" Version="1.15.0" />
   </ItemGroup>
 </Project>
