@@ -16,5 +16,27 @@ Ideally, I'd implement this via an MTP orchestrator. When `--batch-count` is see
 
 ### Orchestrator not yet exposed
 
-As MTP orchestrator is not yet publicly exposed, initiation of run will be done via a dotnet tool. The dotnet tool will play the role of an "orchestrator".
+As MTP orchestrator is not yet publicly exposed, a possible idea is for the test app entry point to recognize `--batch-count` command-line, and go through different code path.
+Instead of running the test app normally, we go to a code path that will discover tests, and run multiple test apps with uid filters. We have three situations to consider:
+
+#### Running as normal executable or via dotnet test pipe protocol
+
+When running as a normal executable, the entry point could build a "fake" test framework that runs. We run the child processes for batching with `--batch-pipe`, and the child processes communicate back test results to the "fake" test framework. The fake test framework responsibility is then to only report the reuslts received via pipe.
+
+When running with dotnet test pipe protocol, we do the same. We run a "fake" test framework that child processes communicate with. The child processes, however, won't be passed the dotnet test pipe. Only the "parent" process will communicate with dotnet test.
+
+#### Running in Json RPC server mode
+
+This is not going to be supported, at least for now.
+
+initiation of run will be done via a dotnet tool. The dotnet tool will play the role of an "orchestrator".
 It will then start the test apps with `--batching-pipe` command-line option, which then causes the individual running test apps to communicate information back to the orchestrator.
+
+### Summary
+
+1. User runs `dotnet test --batch-count <number>` (or runs the exe directly with `--batch-count <number>`)
+2. Test app entry point detects `--batch-count`, builds and runs a fake test framework that communicates via pipes.
+3. Test app entry point starts doing discovery (via pipe protocol).
+4. Test app entry point splits the received test node uids.
+5. Test app entry point starts child processes with `--batch-pipe` and `--filter-uid`, and doesn't pass the original dotnet test pipe (if originally run with dotnet test pipe protocol)
+6. The actual test hosts will recognize `--batch-pipe`, and will have a data consumer that forwards relevant information via pipe to the fake test framework. This information possible include test results and attachments (anything else?).
