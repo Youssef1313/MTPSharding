@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <EnableMSTestRunner>true</EnableMSTestRunner>
     <GenerateTestingPlatformEntryPoint>false</GenerateTestingPlatformEntryPoint>
-    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

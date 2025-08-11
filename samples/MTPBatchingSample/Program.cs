@@ -15,6 +15,9 @@ using ITestApplication app = await builder.BuildForBatchingAsync();
 
 return await app.RunAsync();
 
+/// <summary>
+/// Dummy test class. Serves as a playgound.
+/// </summary>
 [TestClass]
 public class MyTestClass
 {
