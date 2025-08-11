@@ -21,9 +21,11 @@ Instead of running the test app normally, we go to a code path that will discove
 
 #### Running as normal executable or via dotnet test pipe protocol
 
-When running as a normal executable, the entry point could build a "fake" test framework that runs. We run the child processes for batching with `--batch-pipe`, and the child processes communicate back test results to the "fake" test framework. The fake test framework responsibility is then to only report the reuslts received via pipe.
+When running as a normal executable (either directly or via dotnet test pipe protocol), the entry point could build a "fake" test framework that runs. We run the child processes and communicate with them via the pipe protocol. The child processes communicate back test results to the "fake" test framework. The fake test framework responsibility is then to only report the reuslts received via pipe.
 
-When running with dotnet test pipe protocol, we do the same. We run a "fake" test framework that child processes communicate with. The child processes, however, won't be passed the dotnet test pipe. Only the "parent" process will communicate with dotnet test.
+Note: the "fake" test framework knows nothing about anything. So it's not passed any arguments (except `--server dotnettestcli --dotnet-test-pipe ...` when running with dotnet test). This means, `--report-trx` or any other extensions are not going to work properly with batching. We could pass `--report-trx` etc down to each individual child process, but that means we are not collecting a single TRX.
+
+Maybe we can start making the "fake" test framework aware of some common features.
 
 #### Running in Json RPC server mode
 
