@@ -14,7 +14,6 @@
     <File Path="nuget.config" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/YTest.MTP.Batching.Console/YTest.MTP.Batching.Console.csproj" />
     <Project Path="src/YTest.MTP.Batching/YTest.MTP.Batching.csproj" />
     <Project Path="src/YTest.MTP.PipeProtocol/YTest.MTP.PipeProtocol.csproj" />
   </Folder>
