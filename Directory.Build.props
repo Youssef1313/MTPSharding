@@ -9,6 +9,9 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+    <DebugType>embedded</DebugType>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)key.snk</AssemblyOriginatorKeyFile>
 
     <!-- By default, NuGet doesn't include portable PDBs in nupkg. -->
     <!-- As I'm not producing a separate symbol package (*.snupkg), I want portable PDBs to be included. -->

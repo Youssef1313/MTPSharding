@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Testing.Platform" />
-    <InternalsVisibleTo Include="YTest.MTP.Batching.Tests" />
   </ItemGroup>
 
   <ItemGroup>
