@@ -20,9 +20,9 @@
 
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <Authors>Youssef1313</Authors>
-    <PackageTags>MTP UnitTesting Testing Batching MicrosoftTestingPlatform</PackageTags>
+    <PackageTags>MTP UnitTesting Testing Batching MicrosoftTestingPlatform Microsoft.Testing.Platform</PackageTags>
     <Description>
       This package provides batching support for Microsoft.Testing.Platform.
     </Description>
