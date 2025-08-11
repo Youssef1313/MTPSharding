@@ -32,7 +32,7 @@ public sealed class MTPPipeRunner
     // TODO: Replace these parameters with a TestApplicationRunParameters class to encapsulate them
     public MTPPipeRunner(string pathToExe, string arguments, List<string> testNodeUids, string? workingDirectory = null)
     {
-        var filter = $"--filter-uid {string.Join(",", testNodeUids)}";
+        var filter = $"--filter-uid {string.Join(" ", testNodeUids)}";
         // TODO: If too long, write to a temp rsp file and pass the rsp file with "@".
         // TODO: Escape testNodeUids. The escaping logic could be reused from https://github.com/dotnet/sdk/blob/a9c5b0cb6d9e37f97e13c2d10dd2044dbc9d94be/src/RazorSdk/Tool/CommandLine/ArgumentEscaper.cs#L23
         _testApplication = new TestApplication(pathToExe, $"{arguments} {filter}", workingDirectory);
@@ -45,7 +45,7 @@ public sealed class MTPPipeRunner
     public async Task<List<TestResultInformation>> RunTestsAsync()
     {
         var results = new List<TestResultInformation>();
-        EventHandler<TestResultEventArgs> onTestResult = (_, e) =>
+        Func<object, TestResultEventArgs, Task> onTestResult = (_, e) =>
         {
             foreach (var result in e.SuccessfulTestResults)
             {
@@ -62,6 +62,8 @@ public sealed class MTPPipeRunner
                 var state = result.State ?? throw new InvalidOperationException("State is expected to be non-null");
                 results.Add(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput));
             }
+
+            return Task.CompletedTask;
         };
 
         _testApplication.TestResultsReceived += onTestResult;
@@ -75,6 +77,42 @@ public sealed class MTPPipeRunner
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Runs the test application to run tests.
+    /// </summary>
+    /// <returns></returns>
+    public async Task RunTestsAsync(Func<TestResultInformation, Task> onTestResult)
+    {
+        var results = new List<TestResultInformation>();
+        Func<object, TestResultEventArgs, Task> onTestResultInner = async (_, e) => {
+            foreach (var result in e.SuccessfulTestResults)
+            {
+                var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
+                var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
+                var state = result.State ?? throw new InvalidOperationException("State is expected to be non-null");
+                await onTestResult(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput));
+            }
+
+            foreach (var result in e.FailedTestResults)
+            {
+                var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
+                var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
+                var state = result.State ?? throw new InvalidOperationException("State is expected to be non-null");
+                await onTestResult(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput));
+            }
+        };
+
+        _testApplication.TestResultsReceived += onTestResultInner;
+        try
+        {
+            await _testApplication.RunAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _testApplication.TestResultsReceived -= onTestResultInner;
+        }
     }
 
     private static TestResultOutcome ToOutcome(int state)

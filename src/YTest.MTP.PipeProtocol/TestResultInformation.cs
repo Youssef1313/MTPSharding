@@ -4,7 +4,7 @@ namespace YTest.MTP.PipeProtocol;
 
 /// <summary>
 /// Represents the test result of a test.
-/// This type is returned by <see cref="MTPPipeRunner.RunTestsAsync"/>
+/// This type is returned by <see cref="MTPPipeRunner.RunTestsAsync()"/>
 /// </summary>
 public sealed class TestResultInformation
 {

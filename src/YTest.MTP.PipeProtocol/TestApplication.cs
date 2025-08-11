@@ -32,7 +32,7 @@ internal sealed class TestApplication : IDisposable
     public event EventHandler<HandshakeArgs>? HandshakeReceived;
     public event EventHandler<HelpEventArgs>? HelpRequested;
     public event EventHandler<DiscoveredTestEventArgs>? DiscoveredTestsReceived;
-    public event EventHandler<TestResultEventArgs>? TestResultsReceived;
+    public event Func<object, TestResultEventArgs, Task>? TestResultsReceived;
     public event EventHandler<FileArtifactEventArgs>? FileArtifactsReceived;
     public event EventHandler<SessionEventArgs>? SessionEventReceived;
     public event EventHandler<TestProcessExitEventArgs>? TestProcessExited;
@@ -96,7 +96,7 @@ internal sealed class TestApplication : IDisposable
         }
     }
 
-    private Task<IResponse> OnRequest(IRequest request)
+    private async Task<IResponse> OnRequest(IRequest request)
     {
         try
         {
@@ -107,7 +107,7 @@ internal sealed class TestApplication : IDisposable
                     {
                         OnHandshakeMessage(handshakeMessage);
 
-                        return Task.FromResult((IResponse)CreateHandshakeMessage(GetSupportedProtocolVersion(handshakeMessage)));
+                        return (IResponse)CreateHandshakeMessage(GetSupportedProtocolVersion(handshakeMessage));
                     }
                     break;
 
@@ -120,7 +120,7 @@ internal sealed class TestApplication : IDisposable
                     break;
 
                 case TestResultMessages testResultMessages:
-                    OnTestResultMessages(testResultMessages);
+                    await OnTestResultMessagesAsync(testResultMessages).ConfigureAwait(false);
                     break;
 
                 case FileArtifactMessages fileArtifactMessages:
@@ -133,7 +133,7 @@ internal sealed class TestApplication : IDisposable
 
                 // If we don't recognize the message, log and skip it
                 case UnknownMessage unknownMessage:
-                    return Task.FromResult((IResponse)VoidResponse.CachedInstance);
+                    return (IResponse)VoidResponse.CachedInstance;
 
                 default:
                     // If it doesn't match any of the above, throw an exception
@@ -145,7 +145,7 @@ internal sealed class TestApplication : IDisposable
             Environment.FailFast(ex.ToString());
         }
 
-        return Task.FromResult((IResponse)VoidResponse.CachedInstance);
+        return (IResponse)VoidResponse.CachedInstance;
     }
 
     private static string GetSupportedProtocolVersion(HandshakeMessage handshakeMessage)
@@ -168,7 +168,7 @@ internal sealed class TestApplication : IDisposable
             { HandshakeMessagePropertyNames.Architecture, RuntimeInformation.ProcessArchitecture.ToString() },
             { HandshakeMessagePropertyNames.Framework, RuntimeInformation.FrameworkDescription },
             { HandshakeMessagePropertyNames.OS, RuntimeInformation.OSDescription },
-            { HandshakeMessagePropertyNames.SupportedProtocolVersions, version }
+            { HandshakeMessagePropertyNames.SupportedProtocolVersions, version },
         });
 
     private
@@ -233,9 +233,14 @@ internal sealed class TestApplication : IDisposable
         });
     }
 
-    internal void OnTestResultMessages(TestResultMessages testResultMessage)
+    internal async Task OnTestResultMessagesAsync(TestResultMessages testResultMessage)
     {
-        TestResultsReceived?.Invoke(this, new TestResultEventArgs
+        if (TestResultsReceived is null)
+        {
+            return;
+        }
+
+        await TestResultsReceived.Invoke(this, new TestResultEventArgs
         {
             ExecutionId = testResultMessage.ExecutionId,
             InstanceId = testResultMessage.InstanceId,

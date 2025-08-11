@@ -13,4 +13,16 @@
   <ItemGroup>
     <PackageReference Include="MSTest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\YTest.MTP.Batching\YTest.MTP.Batching.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TestingPlatformBuilderHook Include="1B57BBC8-2C64-4B68-BA3B-77E81B98CDF6">
+      <DisplayName>YTest.MTP.Batching</DisplayName>
+      <TypeFullName>YTest.MTP.Batching.BatchingBuilderHook</TypeFullName>
+    </TestingPlatformBuilderHook>
+  </ItemGroup>
+
 </Project>
