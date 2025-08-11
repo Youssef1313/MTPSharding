@@ -9,10 +9,31 @@ using System.Threading.Tasks;
 
 namespace YTest.MTP.PipeProtocol;
 
+/// <summary>
+/// Information about the test process after it exists
+/// </summary>
+public class TestProcessExitInformation : EventArgs
+{
+    /// <summary>
+    /// The standard output of the test process.
+    /// </summary>
+    public required List<string> StandardOutput { get; init; }
+
+    /// <summary>
+    /// The standard error of the test process.
+    /// </summary>
+    public required List<string> StandardError { get; init; }
+
+    /// <summary>
+    /// The exit code of the test process.
+    /// </summary>
+    public required int ExitCode { get; init; }
+}
+
 internal sealed class TestApplication : IDisposable
 {
-    private readonly List<string> _outputData = [];
-    private readonly List<string> _errorData = [];
+    private readonly List<string> _standardOutput = [];
+    private readonly List<string> _standardError = [];
     private readonly PipeNameDescription _pipeNameDescription = NamedPipeServer.GetPipeName(Guid.NewGuid().ToString("N"));
     private readonly CancellationTokenSource _cancellationToken = new();
     private readonly string _pathToExe;
@@ -35,9 +56,8 @@ internal sealed class TestApplication : IDisposable
     public event Func<object, TestResultEventArgs, Task>? TestResultsReceived;
     public event EventHandler<FileArtifactEventArgs>? FileArtifactsReceived;
     public event EventHandler<SessionEventArgs>? SessionEventReceived;
-    public event EventHandler<TestProcessExitEventArgs>? TestProcessExited;
 
-    public async Task<int> RunAsync()
+    public async Task<TestProcessExitInformation> RunAsync()
     {
         var processStartInfo = CreateProcessStartInfo(_pathToExe, _arguments, _workingDirectory);
 
@@ -175,7 +195,7 @@ internal sealed class TestApplication : IDisposable
 #if NET
         async
 #endif
-        Task<int> StartProcess(ProcessStartInfo processStartInfo)
+        Task<TestProcessExitInformation> StartProcess(ProcessStartInfo processStartInfo)
     {
         var process = Process.Start(processStartInfo)!;
         StoreOutputAndErrorData(process);
@@ -184,12 +204,12 @@ internal sealed class TestApplication : IDisposable
 #else
         process.WaitForExit();
 #endif
-        TestProcessExited?.Invoke(this, new TestProcessExitEventArgs { OutputData = _outputData, ErrorData = _errorData, ExitCode = process.ExitCode });
 
+        var exitInfo = new TestProcessExitInformation { StandardOutput = _standardOutput, StandardError = _standardError, ExitCode = process.ExitCode };
 #if NET
-        return process.ExitCode;
+        return exitInfo;
 #else
-        return Task.FromResult(process.ExitCode);
+        return Task.FromResult(exitInfo);
 #endif
     }
 
@@ -201,13 +221,13 @@ internal sealed class TestApplication : IDisposable
             if (string.IsNullOrEmpty(e.Data))
                 return;
 
-            _outputData.Add(e.Data);
+            _standardOutput.Add(e.Data);
         };
         process.ErrorDataReceived += (sender, e) => {
             if (string.IsNullOrEmpty(e.Data))
                 return;
 
-            _errorData.Add(e.Data);
+            _standardError.Add(e.Data);
         };
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();

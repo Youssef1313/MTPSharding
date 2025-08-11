@@ -42,7 +42,7 @@ public sealed class MTPPipeRunner
     /// Runs the test application to run tests.
     /// </summary>
     /// <returns></returns>
-    public async Task<List<TestResultInformation>> RunTestsAsync()
+    public async Task<(List<TestResultInformation> TestResults, TestProcessExitInformation ExitInformation)> RunTestsAsync()
     {
         var results = new List<TestResultInformation>();
         Func<object, TestResultEventArgs, Task> onTestResult = (_, e) =>
@@ -67,23 +67,24 @@ public sealed class MTPPipeRunner
         };
 
         _testApplication.TestResultsReceived += onTestResult;
+        TestProcessExitInformation exitInformation;
         try
         {
-            await _testApplication.RunAsync().ConfigureAwait(false);
+            exitInformation = await _testApplication.RunAsync().ConfigureAwait(false);
         }
         finally
         {
             _testApplication.TestResultsReceived -= onTestResult;
         }
 
-        return results;
+        return (results, exitInformation);
     }
 
     /// <summary>
     /// Runs the test application to run tests.
     /// </summary>
     /// <returns></returns>
-    public async Task RunTestsAsync(Func<TestResultInformation, Task> onTestResult)
+    public async Task<TestProcessExitInformation> RunTestsAsync(Func<TestResultInformation, Task> onTestResult)
     {
         var results = new List<TestResultInformation>();
         Func<object, TestResultEventArgs, Task> onTestResultInner = async (_, e) => {
@@ -107,7 +108,7 @@ public sealed class MTPPipeRunner
         _testApplication.TestResultsReceived += onTestResultInner;
         try
         {
-            await _testApplication.RunAsync().ConfigureAwait(false);
+            return await _testApplication.RunAsync().ConfigureAwait(false);
         }
         finally
         {

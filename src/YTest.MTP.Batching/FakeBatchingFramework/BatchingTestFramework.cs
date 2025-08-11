@@ -67,7 +67,7 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
         };
 
         var discoverer = new MTPPipeDiscoverer(path, args);
-        var tests = await discoverer.DiscoverTestsAsync();
+        var (tests, exitInfo) = await discoverer.DiscoverTestsAsync();
         var batches = new List<DiscoveredTestInformation>[BatchCount];
         for (int i = 0; i < tests.Count; i++)
         {
@@ -93,7 +93,7 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
             }
         }
 
-        var tasks = new List<Task>();
+        var tasks = new List<Task<TestProcessExitInformation>>();
         foreach (var batch in batches)
         {
             if (batch.Count == 0)
@@ -154,6 +154,32 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
         }
 
         await Task.WhenAll(tasks);
+        for (int i = 0; i < tasks.Count; i++)
+        {
+            if (tasks[i].Result.ExitCode != 0)
+            {
+                var batchFailureProperties = new PropertyBag();
+                batchFailureProperties.Add(new ErrorTestNodeStateProperty($"""
+                    Batch {i + 1} failed with exit code {tasks[i].Result.ExitCode}.
+                    Standard Output:
+                    {string.Join(Environment.NewLine, tasks[i].Result.StandardOutput)}
+
+                    Standard Error:
+                    {string.Join(Environment.NewLine, tasks[i].Result.StandardError)}
+                    """));
+                await context.MessageBus.PublishAsync(
+                    this,
+                    new TestNodeUpdateMessage(
+                        context.Request.Session.SessionUid,
+                        new TestNode()
+                        {
+                            DisplayName = $"[Batch {i + 1} failure]",
+                            Uid = $"Batch-{i + 1}",
+                            Properties = batchFailureProperties,
+                        }));
+            }
+        }
+
         context.Complete();
     }
 
