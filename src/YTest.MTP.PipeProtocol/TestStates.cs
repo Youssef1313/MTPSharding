@@ -9,4 +9,5 @@ internal static class TestStates
     internal const byte Error = 4;
     internal const byte Timeout = 5;
     internal const byte Cancelled = 6;
+    internal const byte InProgress = 7;
 }

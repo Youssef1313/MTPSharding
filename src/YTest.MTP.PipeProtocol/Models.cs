@@ -6,7 +6,7 @@ internal sealed record Handshake(Dictionary<byte, string>? Properties);
 
 internal sealed record CommandLineOption(string Name, string Description, bool? IsHidden, bool? IsBuiltIn);
 
-internal sealed record DiscoveredTest(string Uid, string DisplayName);
+internal sealed record DiscoveredTest(string Uid, string DisplayName, string? FilePath, int? LineNumber, string? Namespace, string? TypeName, string? MethodName, TestMetadataProperty[] Traits);
 
 internal sealed record SuccessfulTestResult(string? Uid, string? DisplayName, byte? State, long? Duration, string? Reason, string? StandardOutput, string? ErrorOutput, string? SessionUid);
 

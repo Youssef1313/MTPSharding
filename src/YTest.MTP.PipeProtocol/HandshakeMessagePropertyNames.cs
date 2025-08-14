@@ -11,4 +11,5 @@ internal static class HandshakeMessagePropertyNames
     internal const byte ModulePath = 6;
     internal const byte ExecutionId = 7;
     internal const byte InstanceId = 8;
+    internal const byte IsIDE = 9;
 }

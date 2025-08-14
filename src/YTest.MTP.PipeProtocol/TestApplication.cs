@@ -189,6 +189,7 @@ internal sealed class TestApplication : IDisposable
             { HandshakeMessagePropertyNames.Framework, RuntimeInformation.FrameworkDescription },
             { HandshakeMessagePropertyNames.OS, RuntimeInformation.OSDescription },
             { HandshakeMessagePropertyNames.SupportedProtocolVersions, version },
+            { HandshakeMessagePropertyNames.IsIDE, "true" }, // TODO: Make it user configurable.
         });
 
     private
@@ -249,7 +250,8 @@ internal sealed class TestApplication : IDisposable
         {
             ExecutionId = discoveredTestMessages.ExecutionId,
             InstanceId = discoveredTestMessages.InstanceId,
-            DiscoveredTests = [.. discoveredTestMessages.DiscoveredMessages.Select(message => new DiscoveredTest(message.Uid, message.DisplayName))]
+            DiscoveredTests = [.. discoveredTestMessages.DiscoveredMessages.Select(
+                message => new DiscoveredTest(message.Uid, message.DisplayName, message.FilePath, message.LineNumber, message.Namespace, message.TypeName, message.MethodName, message.Traits))]
         });
     }
 

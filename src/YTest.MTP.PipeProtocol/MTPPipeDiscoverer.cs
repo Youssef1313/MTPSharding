@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace YTest.MTP.PipeProtocol;
@@ -32,7 +33,7 @@ public sealed class MTPPipeDiscoverer
         {
             foreach (var test in e.DiscoveredTests)
             {
-                discoveredTests.Add(new DiscoveredTestInformation(test.Uid, test.DisplayName));
+                discoveredTests.Add(new DiscoveredTestInformation(test.Uid, test.DisplayName, test.FilePath, test.LineNumber, test.Namespace, test.TypeName, test.MethodName, test.Traits.Select(t => new TestTrait(t.Key!, t.Value!)).ToArray()));
             }
         };
 

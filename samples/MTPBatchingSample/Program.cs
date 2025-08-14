@@ -2,9 +2,7 @@
 using Microsoft.Testing.Platform.Builder;
 using MTPBatchingSample.MSTest;
 using YTest.MTP.Batching;
-
-if (args.Contains("--batch-count"))
-    Debugger.Launch();
+using YTest.MTP.PipeProtocol;
 
 ITestApplicationBuilder builder = await TestApplication.CreateBuilderAsync(args);
 SelfRegisteredExtensions.AddSelfRegisteredExtensions(builder, args);
