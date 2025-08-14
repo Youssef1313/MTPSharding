@@ -160,7 +160,7 @@ internal sealed class DiscoveredTestMessagesSerializer : BaseSerializer, INamedP
                 }
             }
 
-            discoveredTestMessages[i] = new DiscoveredTestMessage(uid, displayName, filePath, lineNumber, @namespace, typeName, methodName, traits);
+            discoveredTestMessages[i] = new DiscoveredTestMessage(uid!, displayName!, filePath, lineNumber, @namespace, typeName, methodName, traits);
         }
 
         return discoveredTestMessages;
