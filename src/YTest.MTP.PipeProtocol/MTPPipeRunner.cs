@@ -125,6 +125,7 @@ public sealed class MTPPipeRunner
             TestStates.Error => TestResultOutcome.Error,
             TestStates.Timeout => TestResultOutcome.Timeout,
             TestStates.Cancelled => TestResultOutcome.Cancelled,
+            TestStates.InProgress => TestResultOutcome.InProgress,
             _ => throw new ArgumentException($"Unknown state '{state}'."),
         };
 

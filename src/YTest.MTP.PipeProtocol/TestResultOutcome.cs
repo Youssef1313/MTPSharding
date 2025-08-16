@@ -38,4 +38,9 @@ public enum TestResultOutcome
     /// Indicating a test that was cancelled.
     /// </summary>
     Cancelled = 6,
+
+    /// <summary>
+    /// Indicating a test that is in progress.
+    /// </summary>
+    InProgress = 7
 }

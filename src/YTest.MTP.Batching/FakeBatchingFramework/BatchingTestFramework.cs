@@ -116,6 +116,7 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
                     TestResultOutcome.Error => new ErrorTestNodeStateProperty(result.Reason ?? ""),
                     TestResultOutcome.Timeout => new TimeoutTestNodeStateProperty(result.Reason ?? ""),
                     TestResultOutcome.Cancelled => new CancelledTestNodeStateProperty(result.Reason ?? ""),
+                    TestResultOutcome.InProgress => InProgressTestNodeStateProperty.CachedInstance,
                     _ => throw new InvalidOperationException($"Unexpected outcome '{result.Outcome}'."),
                 });
 
