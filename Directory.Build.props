@@ -20,7 +20,7 @@
 
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <Authors>Youssef1313</Authors>
     <PackageTags>MTP UnitTesting Testing Batching MicrosoftTestingPlatform Microsoft.Testing.Platform</PackageTags>
     <Description>
