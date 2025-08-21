@@ -15,8 +15,8 @@ public sealed class TestResultInformation
         TimeSpan? duration,
         string? reason,
         string? standardOutput,
-        string? standardError
-        )
+        string? standardError,
+        TestResultExceptionInfo[]? exceptions)
     {
         Uid = uid;
         DisplayName = displayName;
@@ -25,6 +25,7 @@ public sealed class TestResultInformation
         Reason = reason;
         StandardOutput = standardOutput;
         StandardError = standardError;
+        Exceptions = exceptions;
     }
 
     /// <summary>
@@ -52,7 +53,6 @@ public sealed class TestResultInformation
     /// </summary>
     public string? Reason { get; }
 
-#if false // TODO
     /// <summary>
     /// Gets the collection of exceptions that occurred during the test execution.
     /// </summary>
@@ -60,8 +60,7 @@ public sealed class TestResultInformation
     /// The returned array may be null if no exceptions were recorded. Use this property to inspect
     /// any errors that were encountered while running the test.
     /// </remarks>
-    public TestResultException[]? Exceptions { get; }
-#endif
+    public TestResultExceptionInfo[]? Exceptions { get; }
 
     /// <summary>
     /// Gets the standard output produced by the test process, if available.

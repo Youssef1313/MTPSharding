@@ -45,14 +45,13 @@ public sealed class MTPPipeRunner
     public async Task<(List<TestResultInformation> TestResults, TestProcessExitInformation ExitInformation)> RunTestsAsync()
     {
         var results = new List<TestResultInformation>();
-        Func<object, TestResultEventArgs, Task> onTestResult = (_, e) =>
-        {
+        Func<object, TestResultEventArgs, Task> onTestResult = (_, e) => {
             foreach (var result in e.SuccessfulTestResults)
             {
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
                 var state = result.State ?? throw new InvalidOperationException("State is expected to be non-null");
-                results.Add(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput));
+                results.Add(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput, null));
             }
 
             foreach (var result in e.FailedTestResults)
@@ -60,7 +59,7 @@ public sealed class MTPPipeRunner
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
                 var state = result.State ?? throw new InvalidOperationException("State is expected to be non-null");
-                results.Add(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput));
+                results.Add(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput, ToExceptions(result.Exceptions)));
             }
 
             return Task.CompletedTask;
@@ -93,7 +92,7 @@ public sealed class MTPPipeRunner
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
                 var state = result.State ?? throw new InvalidOperationException("State is expected to be non-null");
-                await onTestResult(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput));
+                await onTestResult(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput, null));
             }
 
             foreach (var result in e.FailedTestResults)
@@ -101,7 +100,7 @@ public sealed class MTPPipeRunner
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
                 var state = result.State ?? throw new InvalidOperationException("State is expected to be non-null");
-                await onTestResult(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput));
+                await onTestResult(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput, ToExceptions(result.Exceptions)));
             }
         };
 
@@ -133,4 +132,24 @@ public sealed class MTPPipeRunner
         => durationInTicks.HasValue
             ? TimeSpan.FromTicks(durationInTicks.Value)
             : null;
+
+    private static TestResultExceptionInfo[]? ToExceptions(FlatException[]? exceptions)
+    {
+        if (exceptions is null || exceptions.Length == 0)
+        {
+            return null;
+        }
+
+        var result = new TestResultExceptionInfo[exceptions.Length];
+        for (var i = 0; i < exceptions.Length; i++)
+        {
+            var flatException = exceptions[i];
+            result[i] = new TestResultExceptionInfo(
+                flatException.ErrorMessage ?? string.Empty,
+                flatException.ErrorType ?? string.Empty,
+                flatException.StackTrace ?? string.Empty);
+        }
+
+        return result;
+    }
 }
