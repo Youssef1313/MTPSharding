@@ -26,14 +26,7 @@ public sealed class MTPPipeDiscoverer
     /// Runs the test application with --list-tests to collect discovery information.
     /// </summary>
     /// <returns></returns>
-    public Task<(List<DiscoveredTestInformation> DiscoveredTests, TestProcessExitInformation ExitInformation)> DiscoverTestsAsync()
-        => DiscoverTestsAsync(afterProcessStart: null);
-
-    /// <summary>
-    /// Runs the test application with --list-tests to collect discovery information.
-    /// </summary>
-    /// <returns></returns>
-    public async Task<(List<DiscoveredTestInformation> DiscoveredTests, TestProcessExitInformation ExitInformation)> DiscoverTestsAsync(Func<int, Task>? afterProcessStart)
+    public async Task<(List<DiscoveredTestInformation> DiscoveredTests, TestProcessExitInformation ExitInformation)> DiscoverTestsAsync(Func<int, Task>? afterProcessStart = null)
     {
         var discoveredTests = new List<DiscoveredTestInformation>();
         EventHandler<DiscoveredTestEventArgs> onDiscovered = (_, e) => {
