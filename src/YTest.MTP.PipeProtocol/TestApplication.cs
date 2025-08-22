@@ -39,6 +39,7 @@ internal sealed class TestApplication : IDisposable
     private readonly string _pathToExe;
     private readonly string _arguments;
     private readonly string? _workingDirectory;
+    private Task? _afterProcessStartTask;
 
     private Task? _testAppPipeConnectionLoop;
     private readonly List<NamedPipeServer> _testAppPipeConnections = [];
@@ -57,12 +58,11 @@ internal sealed class TestApplication : IDisposable
     public event EventHandler<FileArtifactEventArgs>? FileArtifactsReceived;
     public event EventHandler<SessionEventArgs>? SessionEventReceived;
 
-    public async Task<TestProcessExitInformation> RunAsync()
+    public async Task<TestProcessExitInformation> RunAsync(Func<int, Task>? afterProcessStartCallback = null)
     {
         var processStartInfo = CreateProcessStartInfo(_pathToExe, _arguments, _workingDirectory);
-
         _testAppPipeConnectionLoop = Task.Run(async () => await WaitConnectionAsync(_cancellationToken.Token).ConfigureAwait(false), _cancellationToken.Token);
-        var testProcessResult = await StartProcess(processStartInfo).ConfigureAwait(false);
+        var testProcessResult = await StartProcess(processStartInfo, afterProcessStartCallback).ConfigureAwait(false);
 
         WaitOnTestApplicationPipeConnectionLoop();
 
@@ -78,6 +78,7 @@ internal sealed class TestApplication : IDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
+            CreateNoWindow = true,
         };
 
         if (!string.IsNullOrEmpty(workingDirectory))
@@ -123,6 +124,11 @@ internal sealed class TestApplication : IDisposable
             switch (request)
             {
                 case HandshakeMessage handshakeMessage:
+                    if (_afterProcessStartTask is not null)
+                    {
+                        SpinWait.SpinUntil(() => _afterProcessStartTask.IsCompleted);
+                    }
+
                     if (handshakeMessage.Properties.TryGetValue(HandshakeMessagePropertyNames.ModulePath, out string? value))
                     {
                         OnHandshakeMessage(handshakeMessage);
@@ -192,14 +198,21 @@ internal sealed class TestApplication : IDisposable
             { HandshakeMessagePropertyNames.IsIDE, "true" }, // TODO: Make it user configurable.
         });
 
-    private
-#if NET
-        async
-#endif
-        Task<TestProcessExitInformation> StartProcess(ProcessStartInfo processStartInfo)
+    private async Task<TestProcessExitInformation> StartProcess(ProcessStartInfo processStartInfo, Func<int, Task>? afterProcessStartCallback)
     {
-        var process = Process.Start(processStartInfo)!;
+        var process = new Process()
+        {
+            StartInfo = processStartInfo,
+        };
         StoreOutputAndErrorData(process);
+        process.Start();
+        if (afterProcessStartCallback is not null)
+        {
+            var afterProcessStartTask = afterProcessStartCallback(process.Id);
+            _afterProcessStartTask = afterProcessStartTask;
+            await afterProcessStartTask;
+        }
+
 #if NET
         await process.WaitForExitAsync().ConfigureAwait(false);
 #else
@@ -207,11 +220,7 @@ internal sealed class TestApplication : IDisposable
 #endif
 
         var exitInfo = new TestProcessExitInformation { StandardOutput = _standardOutput, StandardError = _standardError, ExitCode = process.ExitCode };
-#if NET
         return exitInfo;
-#else
-        return Task.FromResult(exitInfo);
-#endif
     }
 
     private void StoreOutputAndErrorData(Process process)

@@ -26,11 +26,17 @@ public sealed class MTPPipeDiscoverer
     /// Runs the test application with --list-tests to collect discovery information.
     /// </summary>
     /// <returns></returns>
-    public async Task<(List<DiscoveredTestInformation> DiscoveredTests, TestProcessExitInformation ExitInformation)> DiscoverTestsAsync()
+    public Task<(List<DiscoveredTestInformation> DiscoveredTests, TestProcessExitInformation ExitInformation)> DiscoverTestsAsync()
+        => DiscoverTestsAsync(afterProcessStart: null);
+
+    /// <summary>
+    /// Runs the test application with --list-tests to collect discovery information.
+    /// </summary>
+    /// <returns></returns>
+    public async Task<(List<DiscoveredTestInformation> DiscoveredTests, TestProcessExitInformation ExitInformation)> DiscoverTestsAsync(Func<int, Task>? afterProcessStart)
     {
         var discoveredTests = new List<DiscoveredTestInformation>();
-        EventHandler<DiscoveredTestEventArgs> onDiscovered = (_, e) =>
-        {
+        EventHandler<DiscoveredTestEventArgs> onDiscovered = (_, e) => {
             foreach (var test in e.DiscoveredTests)
             {
                 discoveredTests.Add(new DiscoveredTestInformation(test.Uid, test.DisplayName, test.FilePath, test.LineNumber, test.Namespace, test.TypeName, test.MethodName, test.Traits.Select(t => new TestTrait(t.Key!, t.Value!)).ToArray()));
@@ -41,7 +47,7 @@ public sealed class MTPPipeDiscoverer
         TestProcessExitInformation exitInformation;
         try
         {
-            exitInformation = await _testApplication.RunAsync().ConfigureAwait(false);
+            exitInformation = await _testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
         }
         finally
         {
