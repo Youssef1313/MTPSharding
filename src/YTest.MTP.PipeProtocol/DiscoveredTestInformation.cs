@@ -2,7 +2,7 @@
 
 /// <summary>
 /// Represents the information about a discovered test.
-/// This type is returned by <see cref="MTPPipeDiscoverer.DiscoverTestsAsync()" /> or <see cref="MTPPipeDiscoverer.DiscoverTestsAsync(System.Func{int, System.Threading.Tasks.Task}?)" />
+/// This type is returned by <see cref="MTPPipeDiscoverer.DiscoverTestsAsync(System.Func{int, System.Threading.Tasks.Task}?)" />
 /// </summary>
 public sealed class DiscoveredTestInformation
 {
