@@ -200,12 +200,8 @@ internal sealed class TestApplication : IDisposable
 
     private async Task<TestProcessExitInformation> StartProcess(ProcessStartInfo processStartInfo, Func<int, Task>? afterProcessStartCallback)
     {
-        var process = new Process()
-        {
-            StartInfo = processStartInfo,
-        };
+        var process = Process.Start(processStartInfo)!;
         StoreOutputAndErrorData(process);
-        process.Start();
         if (afterProcessStartCallback is not null)
         {
             var afterProcessStartTask = afterProcessStartCallback(process.Id);
