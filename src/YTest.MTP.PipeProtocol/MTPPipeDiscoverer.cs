@@ -10,7 +10,9 @@ namespace YTest.MTP.PipeProtocol;
 /// </summary>
 public sealed class MTPPipeDiscoverer
 {
-    private readonly TestApplication _testApplication;
+    private readonly string _pathToExe;
+    private readonly string _arguments;
+    private readonly string? _workingDirectory;
 
     /// <summary>
     /// Creates an instance of MTPPipeDiscoverer.
@@ -20,7 +22,11 @@ public sealed class MTPPipeDiscoverer
     /// <param name="workingDirectory">The working directory of the starting test application.</param>
     // TODO: Replace these parameters with a TestApplicationRunParameters class to encapsulate them
     public MTPPipeDiscoverer(string pathToExe, string arguments, string? workingDirectory = null)
-        => _testApplication = new TestApplication(pathToExe, $"{arguments} --list-tests", workingDirectory);
+    {
+        _pathToExe = pathToExe;
+        _arguments = $"{arguments} --list-tests";
+        _workingDirectory = workingDirectory;
+    }
 
     /// <summary>
     /// Runs the test application with --list-tests to collect discovery information.
@@ -28,6 +34,7 @@ public sealed class MTPPipeDiscoverer
     /// <returns></returns>
     public async Task<(List<DiscoveredTestInformation> DiscoveredTests, TestProcessExitInformation ExitInformation)> DiscoverTestsAsync(Func<int, Task>? afterProcessStart = null)
     {
+        using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var discoveredTests = new List<DiscoveredTestInformation>();
         EventHandler<DiscoveredTestEventArgs> onDiscovered = (_, e) => {
             foreach (var test in e.DiscoveredTests)
@@ -36,15 +43,15 @@ public sealed class MTPPipeDiscoverer
             }
         };
 
-        _testApplication.DiscoveredTestsReceived += onDiscovered;
+        testApplication.DiscoveredTestsReceived += onDiscovered;
         TestProcessExitInformation exitInformation;
         try
         {
-            exitInformation = await _testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
+            exitInformation = await testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
         }
         finally
         {
-            _testApplication.DiscoveredTestsReceived -= onDiscovered;
+            testApplication.DiscoveredTestsReceived -= onDiscovered;
         }
 
         return (discoveredTests, exitInformation);

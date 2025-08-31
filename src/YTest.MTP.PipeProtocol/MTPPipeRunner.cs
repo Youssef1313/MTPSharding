@@ -9,7 +9,9 @@ namespace YTest.MTP.PipeProtocol;
 /// </summary>
 public sealed class MTPPipeRunner
 {
-    private readonly TestApplication _testApplication;
+    private readonly string _pathToExe;
+    private readonly string _arguments;
+    private readonly string? _workingDirectory;
 
     /// <summary>
     /// Creates an instance of MTPPipeRunner that will run all tests.
@@ -19,7 +21,11 @@ public sealed class MTPPipeRunner
     /// <param name="workingDirectory">The working directory of the starting test application.</param>
     // TODO: Replace these parameters with a TestApplicationRunParameters class to encapsulate them
     public MTPPipeRunner(string pathToExe, string arguments, string? workingDirectory = null)
-        => _testApplication = new TestApplication(pathToExe, arguments, workingDirectory);
+    {
+        _pathToExe = pathToExe;
+        _arguments = arguments;
+        _workingDirectory = workingDirectory;
+    }
 
     /// <summary>
     /// Creates an instance of MTPPipeRunner that will run only the given tests Uids.
@@ -35,7 +41,9 @@ public sealed class MTPPipeRunner
         var filter = $"--filter-uid {string.Join(" ", testNodeUids)}";
         // TODO: If too long, write to a temp rsp file and pass the rsp file with "@".
         // TODO: Escape testNodeUids. The escaping logic could be reused from https://github.com/dotnet/sdk/blob/a9c5b0cb6d9e37f97e13c2d10dd2044dbc9d94be/src/RazorSdk/Tool/CommandLine/ArgumentEscaper.cs#L23
-        _testApplication = new TestApplication(pathToExe, $"{arguments} {filter}", workingDirectory);
+        _pathToExe = pathToExe;
+        _arguments = $"{arguments} {filter}";
+        _workingDirectory = workingDirectory;
     }
 
     /// <summary>
@@ -44,6 +52,7 @@ public sealed class MTPPipeRunner
     /// <returns></returns>
     public async Task<(List<TestResultInformation> TestResults, TestProcessExitInformation ExitInformation)> RunTestsAsync(Func<int, Task>? afterProcessStart = null)
     {
+        using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var results = new List<TestResultInformation>();
         Func<object, TestResultEventArgs, Task> onTestResult = (_, e) => {
             foreach (var result in e.SuccessfulTestResults)
@@ -65,15 +74,15 @@ public sealed class MTPPipeRunner
             return Task.CompletedTask;
         };
 
-        _testApplication.TestResultsReceived += onTestResult;
+        testApplication.TestResultsReceived += onTestResult;
         TestProcessExitInformation exitInformation;
         try
         {
-            exitInformation = await _testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
+            exitInformation = await testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
         }
         finally
         {
-            _testApplication.TestResultsReceived -= onTestResult;
+            testApplication.TestResultsReceived -= onTestResult;
         }
 
         return (results, exitInformation);
@@ -85,6 +94,7 @@ public sealed class MTPPipeRunner
     /// <returns></returns>
     public async Task<TestProcessExitInformation> RunTestsAsync(Func<TestResultInformation, Task> onTestResult, Func<int, Task>? afterProcessStart = null)
     {
+        using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var results = new List<TestResultInformation>();
         Func<object, TestResultEventArgs, Task> onTestResultInner = async (_, e) => {
             foreach (var result in e.SuccessfulTestResults)
@@ -104,14 +114,14 @@ public sealed class MTPPipeRunner
             }
         };
 
-        _testApplication.TestResultsReceived += onTestResultInner;
+        testApplication.TestResultsReceived += onTestResultInner;
         try
         {
-            return await _testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
+            return await testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
         }
         finally
         {
-            _testApplication.TestResultsReceived -= onTestResultInner;
+            testApplication.TestResultsReceived -= onTestResultInner;
         }
     }
 

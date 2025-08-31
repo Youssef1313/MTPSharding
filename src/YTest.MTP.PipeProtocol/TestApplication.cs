@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,6 +44,7 @@ internal sealed class TestApplication : IDisposable
 
     private Task? _testAppPipeConnectionLoop;
     private readonly List<NamedPipeServer> _testAppPipeConnections = [];
+    private readonly Dictionary<NamedPipeServer, HandshakeMessage> _handshakes = new();
 
     public TestApplication(string pathToExe, string arguments, string? workingDirectory = null)
     {
@@ -101,7 +103,7 @@ internal sealed class TestApplication : IDisposable
         {
             while (!token.IsCancellationRequested)
             {
-                NamedPipeServer pipeConnection = new(_pipeNameDescription, OnRequest, NamedPipeServerStream.MaxAllowedServerInstances, token, skipUnknownMessages: true);
+                var pipeConnection = new NamedPipeServer(_pipeNameDescription, OnRequest, NamedPipeServerStream.MaxAllowedServerInstances, token);
                 pipeConnection.RegisterAllSerializers();
 
                 await pipeConnection.WaitConnectionAsync(token).ConfigureAwait(false);
@@ -117,13 +119,14 @@ internal sealed class TestApplication : IDisposable
         }
     }
 
-    private async Task<IResponse> OnRequest(IRequest request)
+    private async Task<IResponse> OnRequest(NamedPipeServer server, IRequest request)
     {
         try
         {
             switch (request)
             {
                 case HandshakeMessage handshakeMessage:
+                    _handshakes.Add(server, handshakeMessage);
                     if (_afterProcessStartTask is not null)
                     {
                         SpinWait.SpinUntil(() => _afterProcessStartTask.IsCompleted);
@@ -293,11 +296,57 @@ internal sealed class TestApplication : IDisposable
 
     public void Dispose()
     {
+        Exception? exceptionAggregation = null;
         foreach (var namedPipeServer in _testAppPipeConnections)
         {
-            namedPipeServer.Dispose();
+            try
+            {
+                namedPipeServer.Dispose();
+            }
+            catch (Exception ex)
+            {
+                if (_handshakes.TryGetValue(namedPipeServer, out var handshake))
+                {
+                    var messageBuilder = new StringBuilder("Error disposing NamedPipeServer corresponding to handshake:");
+                    messageBuilder.AppendLine();
+                    messageBuilder.AppendLine($"Test executable path: {_pathToExe}");
+                    foreach (var kvp in handshake.Properties)
+                    {
+                        messageBuilder.AppendLine($"{kvp.Key}: {kvp.Value}");
+                    }
+
+                    ex = new Exception(messageBuilder.ToString(), ex);
+                }
+                else
+                {
+                    var messageBuilder = new StringBuilder("Error disposing NamedPipeServer, and no handshake was found.");
+                    messageBuilder.AppendLine();
+                    messageBuilder.AppendLine($"Test executable path: {_pathToExe}");
+                    ex = new Exception(messageBuilder.ToString(), ex);
+                }
+
+                if (exceptionAggregation is null)
+                {
+                    exceptionAggregation = ex;
+                }
+                else
+                {
+                    if (exceptionAggregation is AggregateException aggregateException)
+                    {
+                        exceptionAggregation = new AggregateException(aggregateException.InnerExceptions.Concat(new[] { ex }));
+                    }
+                    else
+                    {
+                        exceptionAggregation = new AggregateException(exceptionAggregation, ex);
+                    }
+                }
+            }
         }
 
         WaitOnTestApplicationPipeConnectionLoop();
+        if (exceptionAggregation is not null)
+        {
+            throw exceptionAggregation;
+        }
     }
 }

@@ -12,56 +12,26 @@ using System.Threading.Tasks;
 
 namespace YTest.MTP.PipeProtocol;
 
-internal sealed class NamedPipeServer : NamedPipeBase, IServer
+internal sealed class NamedPipeServer : NamedPipeBase
 {
-    private readonly Func<IRequest, Task<IResponse>> _callback;
+    private readonly Func<NamedPipeServer, IRequest, Task<IResponse>> _callback;
     private readonly NamedPipeServerStream _namedPipeServerStream;
     private readonly CancellationToken _cancellationToken;
     private readonly MemoryStream _serializationBuffer = new();
     private readonly MemoryStream _messageBuffer = new();
     private readonly byte[] _readBuffer = new byte[250000];
-    private readonly bool _skipUnknownMessages;
     private Task? _loopTask;
     private bool _disposed;
 
     public NamedPipeServer(
-        string name,
-        Func<IRequest, Task<IResponse>> callback,
-        CancellationToken cancellationToken)
-        : this(GetPipeName(name), callback, cancellationToken)
-    {
-    }
-
-    public NamedPipeServer(
         PipeNameDescription pipeNameDescription,
-        Func<IRequest, Task<IResponse>> callback,
-        CancellationToken cancellationToken)
-        : this(pipeNameDescription, callback, maxNumberOfServerInstances: 1, cancellationToken)
-    {
-    }
-
-    public NamedPipeServer(
-        PipeNameDescription pipeNameDescription,
-        Func<IRequest, Task<IResponse>> callback,
+        Func<NamedPipeServer, IRequest, Task<IResponse>> callback,
         int maxNumberOfServerInstances,
         CancellationToken cancellationToken)
     {
         _namedPipeServerStream = new((PipeName = pipeNameDescription).Name, PipeDirection.InOut, maxNumberOfServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
         _callback = callback;
         _cancellationToken = cancellationToken;
-    }
-
-    public NamedPipeServer(
-        PipeNameDescription pipeNameDescription,
-        Func<IRequest, Task<IResponse>> callback,
-        int maxNumberOfServerInstances,
-        CancellationToken cancellationToken,
-        bool skipUnknownMessages)
-    {
-        _namedPipeServerStream = new((PipeName = pipeNameDescription).Name, PipeDirection.InOut, maxNumberOfServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-        _callback = callback;
-        _cancellationToken = cancellationToken;
-        _skipUnknownMessages = skipUnknownMessages;
     }
 
     public PipeNameDescription PipeName { get; private set; }
@@ -83,10 +53,6 @@ internal sealed class NamedPipeServer : NamedPipeBase, IServer
                 {
                     // We are being cancelled, so we don't need to wait anymore
                     return;
-                }
-                catch (Exception ex)
-                {
-                    Environment.FailFast($"[NamedPipeServer] Unhandled exception:{Environment.NewLine}{ex}", ex);
                 }
             }, cancellationToken);
     }
@@ -150,14 +116,14 @@ internal sealed class NamedPipeServer : NamedPipeBase, IServer
                 int serializerId = BitConverter.ToInt32(_messageBuffer.GetBuffer(), 0);
 
                 // Get the serializer
-                INamedPipeSerializer requestNamedPipeSerializer = GetSerializer(serializerId, _skipUnknownMessages);
+                INamedPipeSerializer requestNamedPipeSerializer = GetSerializer(serializerId, skipUnknownMessages: true);
 
                 // Deserialize the message
                 _messageBuffer.Position += sizeof(int); // Skip the serializer id
                 var deserializedObject = (IRequest)requestNamedPipeSerializer.Deserialize(_messageBuffer);
 
                 // Call the callback
-                IResponse response = await _callback(deserializedObject).ConfigureAwait(false);
+                IResponse response = await _callback(this, deserializedObject).ConfigureAwait(false);
 
                 // Write the message size
                 _messageBuffer.Position = 0;
@@ -286,35 +252,4 @@ internal sealed class NamedPipeServer : NamedPipeBase, IServer
 
         _disposed = true;
     }
-
-#if NET
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        if (WasConnected)
-        {
-            // If the loop task is null at this point we have race condition, means that the task didn't start yet and we already dispose.
-            // This is unexpected and we throw an exception.
-
-            try
-            {
-                // To close gracefully we need to ensure that the client closed the stream line 103.
-                await _loopTask.WaitAsync(TimeSpan.FromSeconds(90)).ConfigureAwait(false);
-            }
-            catch (TimeoutException)
-            {
-                throw new InvalidOperationException("InternalLoopAsyncDidNotExitSuccessfullyErrorMessage");
-            }
-        }
-
-        _namedPipeServerStream.Dispose();
-        PipeName.Dispose();
-
-        _disposed = true;
-    }
-#endif
 }
