@@ -54,8 +54,8 @@ public sealed class MTPPipeRunner
     {
         using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var results = new List<TestResultInformation>();
-        Func<object, TestResultEventArgs, Task> onTestResult = (_, e) => {
-            foreach (var result in e.SuccessfulTestResults)
+        testApplication.OnTestResult = message => {
+            foreach (var result in message.SuccessfulTestMessages)
             {
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
@@ -63,7 +63,7 @@ public sealed class MTPPipeRunner
                 results.Add(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput, null));
             }
 
-            foreach (var result in e.FailedTestResults)
+            foreach (var result in message.FailedTestMessages)
             {
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
@@ -74,17 +74,7 @@ public sealed class MTPPipeRunner
             return Task.CompletedTask;
         };
 
-        testApplication.TestResultsReceived += onTestResult;
-        TestProcessExitInformation exitInformation;
-        try
-        {
-            exitInformation = await testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
-        }
-        finally
-        {
-            testApplication.TestResultsReceived -= onTestResult;
-        }
-
+        TestProcessExitInformation exitInformation = await testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
         return (results, exitInformation);
     }
 
@@ -96,8 +86,9 @@ public sealed class MTPPipeRunner
     {
         using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var results = new List<TestResultInformation>();
-        Func<object, TestResultEventArgs, Task> onTestResultInner = async (_, e) => {
-            foreach (var result in e.SuccessfulTestResults)
+
+        testApplication.OnTestResult = async message => {
+            foreach (var result in message.SuccessfulTestMessages)
             {
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
@@ -105,7 +96,7 @@ public sealed class MTPPipeRunner
                 await onTestResult(new TestResultInformation(uid, displayName, ToOutcome(state), ToTimeSpan(result.Duration), result.Reason, result.StandardOutput, result.ErrorOutput, null));
             }
 
-            foreach (var result in e.FailedTestResults)
+            foreach (var result in message.FailedTestMessages)
             {
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
                 var displayName = result.DisplayName ?? throw new InvalidOperationException("DisplayName is expected to be non-null");
@@ -114,18 +105,10 @@ public sealed class MTPPipeRunner
             }
         };
 
-        testApplication.TestResultsReceived += onTestResultInner;
-        try
-        {
-            return await testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
-        }
-        finally
-        {
-            testApplication.TestResultsReceived -= onTestResultInner;
-        }
+        return await testApplication.RunAsync(afterProcessStart).ConfigureAwait(false);
     }
 
-    private static TestResultOutcome ToOutcome(int state)
+    private static TestResultOutcome ToOutcome(byte state)
         => state switch
         {
             TestStates.Passed => TestResultOutcome.Passed,
@@ -143,7 +126,7 @@ public sealed class MTPPipeRunner
             ? TimeSpan.FromTicks(durationInTicks.Value)
             : null;
 
-    private static TestResultExceptionInfo[]? ToExceptions(FlatException[]? exceptions)
+    private static TestResultExceptionInfo[]? ToExceptions(ExceptionMessage[]? exceptions)
     {
         if (exceptions is null || exceptions.Length == 0)
         {
