@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Microsoft.Testing.Platform.Builder;
-using MTPBatchingSample.MSTest;
-using YTest.MTP.Batching;
+using MTPShardingSample.MSTest;
+using YTest.MTP.Sharding;
 using YTest.MTP.PipeProtocol;
 
 Environment.SetEnvironmentVariable("DOTNET_ROOT", "C:\\Users\\ygerges\\Desktop\\aspire\\.dotnet");
@@ -12,9 +12,9 @@ var result = await discoverer.DiscoverTestsAsync();
 ITestApplicationBuilder builder = await TestApplication.CreateBuilderAsync(args);
 SelfRegisteredExtensions.AddSelfRegisteredExtensions(builder, args);
 
-// Usually without batching, this calls BuildAsync.
-// However, we provide BuildForBatchingAsync that knows which test framework to build (original vs fake)
-using ITestApplication app = await builder.BuildForBatchingAsync();
+// Usually without sharding, this calls BuildAsync.
+// However, we provide BuildForShardingAsync that knows which test framework to build (original vs fake)
+using ITestApplication app = await builder.BuildForShardingAsync();
 
 return await app.RunAsync();
 

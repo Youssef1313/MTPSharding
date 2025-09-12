@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace YTest.MTP.Batching.Tests;
+namespace YTest.MTP.Sharding.Tests;
 
 [TestClass]
 public class TestClass1
