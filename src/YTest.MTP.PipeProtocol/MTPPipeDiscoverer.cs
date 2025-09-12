@@ -36,7 +36,8 @@ public sealed class MTPPipeDiscoverer
     {
         using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var discoveredTests = new List<DiscoveredTestInformation>();
-        testApplication.OnDiscovered = (discoveredTest) => {
+        testApplication.OnDiscovered = (discoveredTest) =>
+        {
             foreach (var test in discoveredTest.DiscoveredMessages)
             {
                 discoveredTests.Add(new DiscoveredTestInformation(test.Uid, test.DisplayName, test.FilePath, test.LineNumber, test.Namespace, test.TypeName, test.MethodName, test.Traits.Select(t => new TestTrait(t.Key!, t.Value!)).ToArray()));

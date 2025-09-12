@@ -54,7 +54,8 @@ public sealed class MTPPipeRunner
     {
         using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var results = new List<TestResultInformation>();
-        testApplication.OnTestResult = message => {
+        testApplication.OnTestResult = message =>
+        {
             foreach (var result in message.SuccessfulTestMessages)
             {
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");
@@ -87,7 +88,8 @@ public sealed class MTPPipeRunner
         using var testApplication = new TestApplication(_pathToExe, _arguments, _workingDirectory);
         var results = new List<TestResultInformation>();
 
-        testApplication.OnTestResult = async message => {
+        testApplication.OnTestResult = async message =>
+        {
             foreach (var result in message.SuccessfulTestMessages)
             {
                 var uid = result.Uid ?? throw new InvalidOperationException("Uid is expected to be non-null");

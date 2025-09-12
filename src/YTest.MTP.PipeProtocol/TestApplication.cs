@@ -80,7 +80,8 @@ internal sealed class TestApplication : IDisposable
             // Note: even with 'process.StandardOutput.ReadToEndAsync()' or 'process.BeginOutputReadLine()', we ended up with
             // many TP threads just doing synchronous IO, slowing down the progress of the test run.
             // We want to read requests coming through the pipe and sending responses back to the test app as fast as possible.
-            var tStdOut = new Thread(() => {
+            var tStdOut = new Thread(() =>
+            {
                 StringBuilder? builder = null;
                 while (true)
                 {
@@ -96,7 +97,8 @@ internal sealed class TestApplication : IDisposable
             tStdOut.Name = "TestApp StdOut read";
             tStdOut.Start();
 
-            var tStdErr = new Thread(() => {
+            var tStdErr = new Thread(() =>
+            {
                 StringBuilder? builder = null;
                 while (true)
                 {

@@ -53,7 +53,8 @@ internal sealed class NamedPipeServer : NamedPipeBase
         await _namedPipeServerStream.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
         WasConnected = true;
         _loopTask = Task.Run(
-            async () => {
+            async () =>
+            {
                 try
                 {
                     await InternalLoopAsync(_cancellationToken).ConfigureAwait(false);
