@@ -18,12 +18,12 @@ public class TestProcessExitInformation : EventArgs
     /// <summary>
     /// The standard output of the test process.
     /// </summary>
-    public required List<string> StandardOutput { get; init; }
+    public required string StandardOutput { get; init; }
 
     /// <summary>
     /// The standard error of the test process.
     /// </summary>
-    public required List<string> StandardError { get; init; }
+    public required string StandardError { get; init; }
 
     /// <summary>
     /// The exit code of the test process.
@@ -33,16 +33,12 @@ public class TestProcessExitInformation : EventArgs
 
 internal sealed class TestApplication : IDisposable
 {
-    private readonly List<string> _standardOutput = [];
-    private readonly List<string> _standardError = [];
-    private readonly PipeNameDescription _pipeNameDescription = NamedPipeServer.GetPipeName(Guid.NewGuid().ToString("N"));
-    private readonly CancellationTokenSource _cancellationToken = new();
+    private readonly string _pipeName = NamedPipeServer.GetPipeName(Guid.NewGuid().ToString("N"));
     private readonly string _pathToExe;
     private readonly string _arguments;
     private readonly string? _workingDirectory;
     private Task? _afterProcessStartTask;
 
-    private Task? _testAppPipeConnectionLoop;
     private readonly List<NamedPipeServer> _testAppPipeConnections = [];
     private readonly Dictionary<NamedPipeServer, HandshakeMessage> _handshakes = new();
 
@@ -63,12 +59,78 @@ internal sealed class TestApplication : IDisposable
     public async Task<TestProcessExitInformation> RunAsync(Func<int, Task>? afterProcessStartCallback = null)
     {
         var processStartInfo = CreateProcessStartInfo(_pathToExe, _arguments, _workingDirectory);
-        _testAppPipeConnectionLoop = Task.Run(async () => await WaitConnectionAsync(_cancellationToken.Token).ConfigureAwait(false), _cancellationToken.Token);
-        var testProcessResult = await StartProcess(processStartInfo, afterProcessStartCallback).ConfigureAwait(false);
 
-        WaitOnTestApplicationPipeConnectionLoop();
+        var cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = cancellationTokenSource.Token;
+        var testAppPipeConnectionLoop = Task.Run(async () => await WaitConnectionAsync(cancellationToken).ConfigureAwait(false));
 
-        return testProcessResult;
+        try
+        {
+            using var process = Process.Start(processStartInfo)!;
+            if (afterProcessStartCallback is not null)
+            {
+                var afterProcessStartTask = afterProcessStartCallback(process.Id);
+                _afterProcessStartTask = afterProcessStartTask;
+                await afterProcessStartTask.ConfigureAwait(false);
+            }
+
+            var standardOutput = process.StandardOutput;
+            var standardError = process.StandardError;
+
+            var tcsStdOutput = new TaskCompletionSource<string>();
+            var tcsStdError = new TaskCompletionSource<string>();
+
+            // Reading from process stdout/stderr is done on separate threads to avoid blocking IO on the threadpool.
+            // Note: even with 'process.StandardOutput.ReadToEndAsync()' or 'process.BeginOutputReadLine()', we ended up with
+            // many TP threads just doing synchronous IO, slowing down the progress of the test run.
+            // We want to read requests coming through the pipe and sending responses back to the test app as fast as possible.
+            var tStdOut = new Thread(() => {
+                StringBuilder? builder = null;
+                while (true)
+                {
+                    if (standardOutput.ReadLine() is not { } line)
+                    {
+                        tcsStdOutput.SetResult(builder?.ToString() ?? string.Empty);
+                        return;
+                    }
+
+                    (builder ??= new()).AppendLine(line);
+                }
+            });
+            tStdOut.Name = "TestApp StdOut read";
+            tStdOut.Start();
+
+            var tStdErr = new Thread(() => {
+                StringBuilder? builder = null;
+                while (true)
+                {
+                    if (standardError.ReadLine() is not { } line)
+                    {
+                        tcsStdError.SetResult(builder?.ToString() ?? string.Empty);
+                        return;
+                    }
+
+                    (builder ??= new()).AppendLine(line);
+                }
+            });
+            tStdErr.Name = "TestApp StdErr read";
+            tStdErr.Start();
+
+            var outputAndError = await Task.WhenAll(tcsStdOutput.Task, tcsStdError.Task).ConfigureAwait(false);
+
+#if NET
+            await process.WaitForExitAsync().ConfigureAwait(false);
+#else
+            process.WaitForExit();
+#endif
+
+            return new TestProcessExitInformation { StandardOutput = outputAndError[0], StandardError = outputAndError[1], ExitCode = process.ExitCode };
+        }
+        finally
+        {
+            cancellationTokenSource.Cancel();
+            await testAppPipeConnectionLoop;
+        }
     }
 
     private ProcessStartInfo CreateProcessStartInfo(string pathToExe, string arguments, string? workingDirectory)
@@ -76,7 +138,7 @@ internal sealed class TestApplication : IDisposable
         var processStartInfo = new ProcessStartInfo
         {
             FileName = pathToExe,
-            Arguments = $"{arguments} --server dotnettestcli --dotnet-test-pipe {_pipeNameDescription.Name}",
+            Arguments = $"{arguments} --server dotnettestcli --dotnet-test-pipe {_pipeName}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -91,19 +153,13 @@ internal sealed class TestApplication : IDisposable
         return processStartInfo;
     }
 
-    private void WaitOnTestApplicationPipeConnectionLoop()
-    {
-        _cancellationToken.Cancel();
-        _testAppPipeConnectionLoop?.Wait((int)TimeSpan.FromSeconds(30).TotalMilliseconds);
-    }
-
     private async Task WaitConnectionAsync(CancellationToken token)
     {
         try
         {
             while (!token.IsCancellationRequested)
             {
-                var pipeConnection = new NamedPipeServer(_pipeNameDescription, OnRequest, NamedPipeServerStream.MaxAllowedServerInstances, token);
+                var pipeConnection = new NamedPipeServer(_pipeName, OnRequest, NamedPipeServerStream.MaxAllowedServerInstances, token);
                 pipeConnection.RegisterAllSerializers();
 
                 await pipeConnection.WaitConnectionAsync(token).ConfigureAwait(false);
@@ -190,56 +246,23 @@ internal sealed class TestApplication : IDisposable
         return version;
     }
 
-    private static HandshakeMessage CreateHandshakeMessage(string version) =>
-        new(new Dictionary<byte, string>
+    private static HandshakeMessage CreateHandshakeMessage(string version)
+    {
+#if NET
+        var processId = Environment.ProcessId.ToString();
+#else
+        using var process = Process.GetCurrentProcess();
+        var processId = process.Id.ToString();
+#endif
+        return new HandshakeMessage(new Dictionary<byte, string>
         {
-            { HandshakeMessagePropertyNames.PID, Process.GetCurrentProcess().Id.ToString() },
+            { HandshakeMessagePropertyNames.PID, processId },
             { HandshakeMessagePropertyNames.Architecture, RuntimeInformation.ProcessArchitecture.ToString() },
             { HandshakeMessagePropertyNames.Framework, RuntimeInformation.FrameworkDescription },
             { HandshakeMessagePropertyNames.OS, RuntimeInformation.OSDescription },
             { HandshakeMessagePropertyNames.SupportedProtocolVersions, version },
             { HandshakeMessagePropertyNames.IsIDE, "true" }, // TODO: Make it user configurable.
         });
-
-    private async Task<TestProcessExitInformation> StartProcess(ProcessStartInfo processStartInfo, Func<int, Task>? afterProcessStartCallback)
-    {
-        var process = Process.Start(processStartInfo)!;
-        StoreOutputAndErrorData(process);
-        if (afterProcessStartCallback is not null)
-        {
-            var afterProcessStartTask = afterProcessStartCallback(process.Id);
-            _afterProcessStartTask = afterProcessStartTask;
-            await afterProcessStartTask;
-        }
-
-#if NET
-        await process.WaitForExitAsync().ConfigureAwait(false);
-#else
-        process.WaitForExit();
-#endif
-
-        var exitInfo = new TestProcessExitInformation { StandardOutput = _standardOutput, StandardError = _standardError, ExitCode = process.ExitCode };
-        return exitInfo;
-    }
-
-    private void StoreOutputAndErrorData(Process process)
-    {
-        process.EnableRaisingEvents = true;
-
-        process.OutputDataReceived += (sender, e) => {
-            if (string.IsNullOrEmpty(e.Data))
-                return;
-
-            _standardOutput.Add(e.Data);
-        };
-        process.ErrorDataReceived += (sender, e) => {
-            if (string.IsNullOrEmpty(e.Data))
-                return;
-
-            _standardError.Add(e.Data);
-        };
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
     }
 
     public void OnHandshakeMessage(HandshakeMessage handshakeMessage)
@@ -343,7 +366,6 @@ internal sealed class TestApplication : IDisposable
             }
         }
 
-        WaitOnTestApplicationPipeConnectionLoop();
         if (exceptionAggregation is not null)
         {
             throw exceptionAggregation;
