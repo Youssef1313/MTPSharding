@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -70,55 +71,18 @@ internal sealed class TestApplication : IDisposable
                 await afterProcessStartTask.ConfigureAwait(false);
             }
 
-            var standardOutput = process.StandardOutput;
-            var standardError = process.StandardError;
-
-            var tcsStdOutput = new TaskCompletionSource<string>();
-            var tcsStdError = new TaskCompletionSource<string>();
-
             // Reading from process stdout/stderr is done on separate threads to avoid blocking IO on the threadpool.
             // Note: even with 'process.StandardOutput.ReadToEndAsync()' or 'process.BeginOutputReadLine()', we ended up with
             // many TP threads just doing synchronous IO, slowing down the progress of the test run.
             // We want to read requests coming through the pipe and sending responses back to the test app as fast as possible.
-            var tStdOut = new Thread(() =>
-            {
-                StringBuilder? builder = null;
-                while (true)
-                {
-                    if (standardOutput.ReadLine() is not { } line)
-                    {
-                        tcsStdOutput.SetResult(builder?.ToString() ?? string.Empty);
-                        return;
-                    }
-
-                    (builder ??= new()).AppendLine(line);
-                }
-            });
-            tStdOut.Name = "TestApp StdOut read";
-            tStdOut.Start();
-
-            var tStdErr = new Thread(() =>
-            {
-                StringBuilder? builder = null;
-                while (true)
-                {
-                    if (standardError.ReadLine() is not { } line)
-                    {
-                        tcsStdError.SetResult(builder?.ToString() ?? string.Empty);
-                        return;
-                    }
-
-                    (builder ??= new()).AppendLine(line);
-                }
-            });
-            tStdErr.Name = "TestApp StdErr read";
-            tStdErr.Start();
-
-            var outputAndError = await Task.WhenAll(tcsStdOutput.Task, tcsStdError.Task).ConfigureAwait(false);
+            var stdOutTask = Task.Factory.StartNew(static standardOutput => ((StreamReader)standardOutput!).ReadToEnd(), process.StandardOutput, TaskCreationOptions.LongRunning);
+            var stdErrTask = Task.Factory.StartNew(static standardError => ((StreamReader)standardError!).ReadToEnd(), process.StandardError, TaskCreationOptions.LongRunning);
+            var outputAndError = await Task.WhenAll(stdOutTask, stdErrTask).ConfigureAwait(false);
 
 #if NET
             await process.WaitForExitAsync().ConfigureAwait(false);
 #else
+            // TODO: This might cause potentially block threadpool thread and ends up starving the threadpool.
             process.WaitForExit();
 #endif
 
