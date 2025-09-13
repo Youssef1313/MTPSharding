@@ -11,27 +11,6 @@ using System.Threading.Tasks;
 
 namespace YTest.MTP.PipeProtocol;
 
-/// <summary>
-/// Information about the test process after it exists
-/// </summary>
-public class TestProcessExitInformation
-{
-    /// <summary>
-    /// The standard output of the test process.
-    /// </summary>
-    public required string StandardOutput { get; init; }
-
-    /// <summary>
-    /// The standard error of the test process.
-    /// </summary>
-    public required string StandardError { get; init; }
-
-    /// <summary>
-    /// The exit code of the test process.
-    /// </summary>
-    public required int ExitCode { get; init; }
-}
-
 internal sealed class TestApplication : IDisposable
 {
     private readonly string _pipeName = NamedPipeServer.GetPipeName(Guid.NewGuid().ToString("N"));
@@ -79,12 +58,7 @@ internal sealed class TestApplication : IDisposable
             var stdErrTask = Task.Factory.StartNew(static standardError => ((StreamReader)standardError!).ReadToEnd(), process.StandardError, TaskCreationOptions.LongRunning);
             var outputAndError = await Task.WhenAll(stdOutTask, stdErrTask).ConfigureAwait(false);
 
-#if NET
             await process.WaitForExitAsync().ConfigureAwait(false);
-#else
-            // TODO: This might cause potentially block threadpool thread and ends up starving the threadpool.
-            process.WaitForExit();
-#endif
 
             return new TestProcessExitInformation { StandardOutput = outputAndError[0], StandardError = outputAndError[1], ExitCode = process.ExitCode };
         }
