@@ -10,24 +10,24 @@ using Microsoft.Testing.Platform.Extensions.TestFramework;
 using Microsoft.Testing.Platform.Requests;
 using YTest.MTP.PipeProtocol;
 
-namespace YTest.MTP.Batching.FakeBatchingFramework;
+namespace YTest.MTP.Sharding.FakeShardingFramework;
 
-internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
+internal sealed class ShardingTestFramework : ITestFramework, IDataProducer
 {
-    public BatchingTestFramework(int batchCount)
-        => BatchCount = batchCount;
+    public ShardingTestFramework(int shardCount)
+        => ShardCount = shardCount;
 
-    public string Uid => nameof(BatchingTestFramework);
+    public string Uid => nameof(ShardingTestFramework);
 
     public string Version => "1.0.0";
 
-    public string DisplayName => "Batching Test Framework";
+    public string DisplayName => "Sharding Test Framework";
 
-    public string Description => "Batching Test Framework for YTest.MTP.Batching extension";
+    public string Description => "Sharding Test Framework for YTest.MTP.Sharding extension";
 
     public Type[] DataTypesProduced { get; } = [typeof(TestNodeUpdateMessage)];
 
-    internal int BatchCount { get; }
+    internal int ShardCount { get; }
 
     public Task<CloseTestSessionResult> CloseTestSessionAsync(CloseTestSessionContext context)
         => Task.FromResult(new CloseTestSessionResult() { IsSuccess = true });
@@ -39,7 +39,7 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
     {
         if (context.Request is DiscoverTestExecutionRequest)
         {
-            throw new InvalidOperationException("The BatchingTestFramework isn't expected to run with discovery.");
+            throw new InvalidOperationException("The ShardingTestFramework isn't expected to run with discovery.");
         }
 
         if (context.Request is not RunTestExecutionRequest runRequest)
@@ -63,12 +63,12 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
             null or NopFilter or TreeNodeFilter => string.Empty,
 #pragma warning restore TPEXP // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
             TestNodeUidListFilter testNodeUidListFilter => $"--filter-uid {string.Join(" ", testNodeUidListFilter.TestNodeUids.Select(uid => uid.Value))}",
-            _ => throw new NotSupportedException($"Filter type '{runRequest.Filter.GetType()}' is not supported by the BatchingTestFramework."),
+            _ => throw new NotSupportedException($"Filter type '{runRequest.Filter.GetType()}' is not supported by the ShardingTestFramework."),
         };
 
         var discoverer = new MTPPipeDiscoverer(path, args);
         var (tests, exitInfo) = await discoverer.DiscoverTestsAsync();
-        var batches = new List<DiscoveredTestInformation>[BatchCount];
+        var shards = new List<DiscoveredTestInformation>[ShardCount];
         for (int i = 0; i < tests.Count; i++)
         {
 #pragma warning disable TPEXP // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
@@ -82,26 +82,26 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
                 }
             }
 
-            var batchIndex = i % BatchCount;
-            if (batches[batchIndex] == null)
+            var shardIndex = i % ShardCount;
+            if (shards[shardIndex] == null)
             {
-                batches[batchIndex] = [tests[i]];
+                shards[shardIndex] = [tests[i]];
             }
             else
             {
-                batches[batchIndex].Add(tests[i]);
+                shards[shardIndex].Add(tests[i]);
             }
         }
 
         var tasks = new List<Task<TestProcessExitInformation>>();
-        foreach (var batch in batches)
+        foreach (var shard in shards)
         {
-            if (batch.Count == 0)
+            if (shard.Count == 0)
             {
                 continue;
             }
 
-            var runner = new MTPPipeRunner(path, "", batch.Select(test => test.Uid).ToList());
+            var runner = new MTPPipeRunner(path, "", shard.Select(test => test.Uid).ToList());
             tasks.Add(runner.RunTestsAsync(async result =>
             {
                 var properties = new PropertyBag();
@@ -159,9 +159,9 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
         {
             if (tasks[i].Result.ExitCode != 0)
             {
-                var batchFailureProperties = new PropertyBag();
-                batchFailureProperties.Add(new ErrorTestNodeStateProperty($"""
-                    Batch {i + 1} failed with exit code {tasks[i].Result.ExitCode}.
+                var shardFailureProperties = new PropertyBag();
+                shardFailureProperties.Add(new ErrorTestNodeStateProperty($"""
+                    Shard {i + 1} failed with exit code {tasks[i].Result.ExitCode}.
                     Standard Output:
                     {string.Join(Environment.NewLine, tasks[i].Result.StandardOutput)}
 
@@ -174,9 +174,9 @@ internal sealed class BatchingTestFramework : ITestFramework, IDataProducer
                         context.Request.Session.SessionUid,
                         new TestNode()
                         {
-                            DisplayName = $"[Batch {i + 1} failure]",
-                            Uid = $"Batch-{i + 1}",
-                            Properties = batchFailureProperties,
+                            DisplayName = $"[Shard {i + 1} failure]",
+                            Uid = $"Shard-{i + 1}",
+                            Properties = shardFailureProperties,
                         }));
             }
         }

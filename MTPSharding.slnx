@@ -14,13 +14,13 @@
     <File Path="nuget.config" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/YTest.MTP.Batching/YTest.MTP.Batching.csproj" />
+    <Project Path="src/YTest.MTP.Sharding/YTest.MTP.Sharding.csproj" />
     <Project Path="src/YTest.MTP.PipeProtocol/YTest.MTP.PipeProtocol.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/YTest.MTP.Batching.Tests/YTest.MTP.Batching.Tests.csproj" />
+    <Project Path="tests/YTest.MTP.Sharding.Tests/YTest.MTP.Sharding.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
-    <Project Path="samples/MTPBatchingSample/MTPBatchingSample.MSTest.csproj" />
+    <Project Path="samples/MTPShardingSample/MTPShardingSample.MSTest.csproj" />
   </Folder>
 </Solution>

@@ -5,16 +5,6 @@ internal static class VoidResponseFieldsId
     public const int MessagesSerializerId = 0;
 }
 
-internal static class TestHostProcessExitRequestFieldsId
-{
-    public const int MessagesSerializerId = 1;
-}
-
-internal static class TestHostProcessPIDRequestFieldsId
-{
-    public const int MessagesSerializerId = 2;
-}
-
 internal static class CommandLineOptionMessagesFieldsId
 {
     public const int MessagesSerializerId = 3;

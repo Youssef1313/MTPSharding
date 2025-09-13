@@ -20,11 +20,11 @@
 
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
-    <Version>3.0.1</Version>
+    <Version>3.0.2</Version>
     <Authors>Youssef1313</Authors>
-    <PackageTags>MTP UnitTesting Testing Batching MicrosoftTestingPlatform Microsoft.Testing.Platform</PackageTags>
+    <PackageTags>MTP UnitTesting Testing Sharding MicrosoftTestingPlatform Microsoft.Testing.Platform</PackageTags>
     <Description>
-      This package provides batching support for Microsoft.Testing.Platform.
+      This package provides sharding support for Microsoft.Testing.Platform.
     </Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>

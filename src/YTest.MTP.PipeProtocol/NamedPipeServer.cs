@@ -3,7 +3,6 @@
 using System.Buffers;
 #endif
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
@@ -14,6 +13,8 @@ namespace YTest.MTP.PipeProtocol;
 
 internal sealed class NamedPipeServer : NamedPipeBase
 {
+    private static bool IsUnix => Path.DirectorySeparatorChar == '/';
+
     private readonly Func<NamedPipeServer, IRequest, Task<IResponse>> _callback;
     private readonly NamedPipeServerStream _namedPipeServerStream;
     private readonly CancellationToken _cancellationToken;
@@ -24,17 +25,25 @@ internal sealed class NamedPipeServer : NamedPipeBase
     private bool _disposed;
 
     public NamedPipeServer(
-        PipeNameDescription pipeNameDescription,
+        string pipeName,
         Func<NamedPipeServer, IRequest, Task<IResponse>> callback,
         int maxNumberOfServerInstances,
         CancellationToken cancellationToken)
     {
-        _namedPipeServerStream = new((PipeName = pipeNameDescription).Name, PipeDirection.InOut, maxNumberOfServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        PipeName = pipeName;
+        _namedPipeServerStream = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            maxNumberOfServerInstances,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous,
+            inBufferSize: 0,
+            outBufferSize: 0);
         _callback = callback;
         _cancellationToken = cancellationToken;
     }
 
-    public PipeNameDescription PipeName { get; private set; }
+    public string PipeName { get; private set; }
 
     [MemberNotNullWhen(true, nameof(_loopTask))]
     public bool WasConnected { get; private set; }
@@ -44,7 +53,8 @@ internal sealed class NamedPipeServer : NamedPipeBase
         await _namedPipeServerStream.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
         WasConnected = true;
         _loopTask = Task.Run(
-            async () => {
+            async () =>
+            {
                 try
                 {
                     await InternalLoopAsync(_cancellationToken).ConfigureAwait(false);
@@ -210,22 +220,15 @@ internal sealed class NamedPipeServer : NamedPipeBase
         }
     }
 
-    public static PipeNameDescription GetPipeName(string name)
+    public static string GetPipeName(string name)
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!IsUnix)
         {
-            return new PipeNameDescription($"testingplatform.pipe.{name.Replace('\\', '.')}", false);
+            return $"testingplatform.pipe.{name.Replace('\\', '.')}";
         }
 
-        string directoryId = Path.Combine(Path.GetTempPath(), name);
-        Directory.CreateDirectory(directoryId);
-        return new PipeNameDescription(
-            !Directory.Exists(directoryId)
-                ? throw new DirectoryNotFoundException(string.Format(
-                    CultureInfo.InvariantCulture,
-                    $"Directory: {directoryId} doesn't exist.",
-                    directoryId))
-                : Path.Combine(directoryId, ".p"), true);
+        // Similar to https://github.com/dotnet/roslyn/blob/99bf83c7bc52fa1ff27cf792db38755d5767c004/src/Compilers/Shared/NamedPipeUtil.cs#L26-L42
+        return Path.Combine("/tmp", name);
     }
 
     public void Dispose()
@@ -235,21 +238,26 @@ internal sealed class NamedPipeServer : NamedPipeBase
             return;
         }
 
-        if (WasConnected)
+        try
         {
-            // If the loop task is null at this point we have race condition, means that the task didn't start yet and we already dispose.
-            // This is unexpected and we throw an exception.
-
-            // To close gracefully we need to ensure that the client closed the stream line 103.
-            if (!_loopTask.Wait(TimeSpan.FromSeconds(90)))
+            if (WasConnected)
             {
-                throw new InvalidOperationException("InternalLoopAsyncDidNotExitSuccessfullyErrorMessage");
+                // If the loop task is null at this point we have race condition, means that the task didn't start yet and we already dispose.
+                // This is unexpected and we throw an exception.
+
+                // To close gracefully we need to ensure that the client closed the stream line 103.
+                if (!_loopTask!.Wait(TimeSpan.FromSeconds(90)))
+                {
+                    throw new InvalidOperationException("Loop task couldn't finish in timely manner");
+                }
             }
         }
-
-        _namedPipeServerStream.Dispose();
-        PipeName.Dispose();
-
-        _disposed = true;
+        finally
+        {
+            // Ensure we are still disposing the resouces correctly, even if _loopTask completes with
+            // an exception, or if the task doesn't complete within the 90 seconds limit.
+            _namedPipeServerStream.Dispose();
+            _disposed = true;
+        }
     }
 }

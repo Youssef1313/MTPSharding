@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="MSTest" />
-    <ProjectReference Include="..\..\src\YTest.MTP.Batching\YTest.MTP.Batching.csproj" />
+    <ProjectReference Include="..\..\src\YTest.MTP.Sharding\YTest.MTP.Sharding.csproj" />
     <ProjectReference Include="..\..\src\YTest.MTP.PipeProtocol\YTest.MTP.PipeProtocol.csproj" />
   </ItemGroup>
 
