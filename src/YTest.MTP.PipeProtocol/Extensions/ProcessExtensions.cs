@@ -10,6 +10,7 @@ namespace YTest.MTP.PipeProtocol;
 internal static class ProcessExtensions
 {
 #if !NET
+    // MOSTLY COPY FROM dotnet/runtime implementation.
     public static async Task WaitForExitAsync(this Process process, CancellationToken cancellationToken = default)
     {
         if (!process.HasExited)
