@@ -82,6 +82,7 @@ internal sealed class TestApplication : IDisposable
 #if NET
             await process.WaitForExitAsync().ConfigureAwait(false);
 #else
+            // TODO: This might cause potentially block threadpool thread and ends up starving the threadpool.
             process.WaitForExit();
 #endif
 
