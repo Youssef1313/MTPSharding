@@ -4,10 +4,10 @@ using MTPShardingSample.MSTest;
 using YTest.MTP.Sharding;
 using YTest.MTP.PipeProtocol;
 
-Environment.SetEnvironmentVariable("DOTNET_ROOT", "C:\\Users\\ygerges\\Desktop\\aspire\\.dotnet");
+// Environment.SetEnvironmentVariable("DOTNET_ROOT", "C:\\Users\\ygerges\\Desktop\\aspire\\.dotnet");
 
-var discoverer = new MTPPipeDiscoverer("C:\\Users\\ygerges\\Desktop\\aspire\\artifacts\\bin\\Aspire.Cli.Tests\\Debug\\net8.0\\Aspire.Cli.Tests.exe", "");
-var result = await discoverer.DiscoverTestsAsync();
+// var discoverer = new MTPPipeDiscoverer("C:\\Users\\ygerges\\Desktop\\aspire\\artifacts\\bin\\Aspire.Cli.Tests\\Debug\\net8.0\\Aspire.Cli.Tests.exe", "");
+// var result = await discoverer.DiscoverTestsAsync();
 
 ITestApplicationBuilder builder = await TestApplication.CreateBuilderAsync(args);
 SelfRegisteredExtensions.AddSelfRegisteredExtensions(builder, args);
