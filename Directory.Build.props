@@ -20,7 +20,7 @@
 
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
-    <Version>3.0.3</Version>
+    <Version>3.1.0</Version>
     <Authors>Youssef1313</Authors>
     <PackageTags>MTP UnitTesting Testing Sharding MicrosoftTestingPlatform Microsoft.Testing.Platform</PackageTags>
     <Description>
