@@ -6,7 +6,16 @@
 /// </summary>
 public sealed class DiscoveredTestInformation
 {
-    internal DiscoveredTestInformation(string uid, string displayName, string? filePath, int? lineNumber, string? @namespace, string? typeName, string? methodName, TestTrait[]? traits)
+    internal DiscoveredTestInformation(
+        string uid,
+        string displayName,
+        string? filePath,
+        int? lineNumber,
+        string? @namespace,
+        string? typeName,
+        string? methodName,
+        string[] parameterTypeFullNames,
+        TestTrait[]? traits)
     {
         Uid = uid;
         DisplayName = displayName;
@@ -15,6 +24,7 @@ public sealed class DiscoveredTestInformation
         Namespace = @namespace;
         TypeName = typeName;
         MethodName = methodName;
+        ParameterTypeFullNames = parameterTypeFullNames;
         Traits = traits;
     }
 
@@ -52,6 +62,11 @@ public sealed class DiscoveredTestInformation
     /// The name of the method containing the test.
     /// </summary>
     public string? MethodName { get; }
+
+    /// <summary>
+    /// The types of parameters of the test method.
+    /// </summary>
+    public string[] ParameterTypeFullNames { get; }
 
     /// <summary>
     /// The traits associated with the test.

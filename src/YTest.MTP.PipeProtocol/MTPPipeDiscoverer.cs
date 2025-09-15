@@ -40,7 +40,7 @@ public sealed class MTPPipeDiscoverer
         {
             foreach (var test in discoveredTest.DiscoveredMessages)
             {
-                discoveredTests.Add(new DiscoveredTestInformation(test.Uid, test.DisplayName, test.FilePath, test.LineNumber, test.Namespace, test.TypeName, test.MethodName, test.Traits.Select(t => new TestTrait(t.Key!, t.Value!)).ToArray()));
+                discoveredTests.Add(new DiscoveredTestInformation(test.Uid, test.DisplayName, test.FilePath, test.LineNumber, test.Namespace, test.TypeName, test.MethodName, test.ParameterTypeFullNames ?? Array.Empty<string>(), test.Traits.Select(t => new TestTrait(t.Key!, t.Value!)).ToArray()));
             }
             return Task.CompletedTask;
         };
