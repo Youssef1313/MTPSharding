@@ -24,7 +24,7 @@ public sealed class MTPPipeDiscoverer
     public MTPPipeDiscoverer(string pathToExe, string arguments, string? workingDirectory = null)
     {
         _pathToExe = pathToExe;
-        _arguments = $"{arguments} --list-tests";
+        _arguments = string.IsNullOrEmpty(arguments) ? "--list-tests" : $"{arguments} --list-tests";
         _workingDirectory = workingDirectory;
     }
 

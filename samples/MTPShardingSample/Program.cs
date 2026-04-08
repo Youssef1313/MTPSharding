@@ -12,9 +12,7 @@ using YTest.MTP.PipeProtocol;
 ITestApplicationBuilder builder = await TestApplication.CreateBuilderAsync(args);
 SelfRegisteredExtensions.AddSelfRegisteredExtensions(builder, args);
 
-// Usually without sharding, this calls BuildAsync.
-// However, we provide BuildForShardingAsync that knows which test framework to build (original vs fake)
-using ITestApplication app = await builder.BuildForShardingAsync();
+using ITestApplication app = await builder.BuildAsync();
 
 return await app.RunAsync();
 
