@@ -15,7 +15,7 @@ public static class ShardingBuilderHook
     {
         testApplicationBuilder.CommandLine.AddProvider(() => new ShardingCommandLineOptionsProvider());
 #pragma warning disable TPEXP // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-        testApplicationBuilder.TestHostOrchestrator.AddTestHostOrchestrator(sp => new ShardingOrchestrator(sp.GetCommandLineOptions()));
+        testApplicationBuilder.TestHostOrchestrator.AddTestHostOrchestrator(sp => new ShardingOrchestrator(sp.GetCommandLineOptions(), sp.GetConfiguration()));
 #pragma warning restore TPEXP // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
     }
 }

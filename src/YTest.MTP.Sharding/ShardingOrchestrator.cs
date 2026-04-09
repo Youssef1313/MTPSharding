@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+#if !NETCOREAPP
+using System.Text;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Testing.Platform.CommandLine;
-using Microsoft.Testing.Platform.Extensions.CommandLine;
-using Microsoft.Testing.Platform.Extensions.Messages;
+using Microsoft.Testing.Platform.Configurations;
 using Microsoft.Testing.Platform.Extensions.TestHostOrchestrator;
-using Microsoft.Testing.Platform.Requests;
 using YTest.MTP.PipeProtocol;
 
 namespace YTest.MTP.Sharding;
@@ -17,10 +19,12 @@ namespace YTest.MTP.Sharding;
 internal sealed class ShardingOrchestrator : ITestHostExecutionOrchestrator
 #pragma warning restore TPEXP // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 {
+    private readonly string _resultsDirectory;
     private readonly int? _shardCount;
-
-    public ShardingOrchestrator(ICommandLineOptions commandLineOptions)
+    
+    public ShardingOrchestrator(ICommandLineOptions commandLineOptions, IConfiguration configuration)
     {
+        _resultsDirectory = configuration.GetTestResultDirectory();
         if (commandLineOptions.TryGetOptionArgumentList("shard-count", out string[]? shardCountArg) &&
             int.TryParse(shardCountArg[0], out int shardCount))
         {
@@ -40,6 +44,7 @@ internal sealed class ShardingOrchestrator : ITestHostExecutionOrchestrator
 
     public async Task<int> OrchestrateTestHostExecutionAsync(CancellationToken cancellationToken)
     {
+        Debugger.Launch();
 #if NETSTANDARD || NETFRAMEWORK
         string filePath;
         using (var process = Process.GetCurrentProcess())
@@ -68,16 +73,146 @@ internal sealed class ShardingOrchestrator : ITestHostExecutionOrchestrator
             }
         }
 
-        foreach (var shard in shards)
+        var currentArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
+
+        var commonChildArgs = new List<string>()
         {
-            // TODO: For each shard, start a child process with the correct filter.
-            // TODO: When running with terminal progress, how are we supposed to handle all those child processes? :/
-            // TODO: How to handle --results-directory. For example, if user is running with --report-trx --report-trx-filename myfile.trx
-            // How can each shard handle stuff correctly?
-            // Is it reasonable to alter --results-directory to something like `Path.Combine(original, $"Shard{shardNumber}")` ?
+            "--no-progress",
+            "--no-ansi",
+        };
+
+        for (int i = 0; i < currentArgs.Length; i++)
+        {
+            if (currentArgs[i] is "--results-directory" or "--shard-count")
+            {
+                i++;
+                continue;
+            }
+
+            if (currentArgs[i] is "--no-progress" or "--no-ansi")
+            {
+                // We will always force no progress and no ansi.
+                continue;
+            }
+
+            commonChildArgs.Add(currentArgs[i]);
         }
 
-        return 0;
+        var tasks = new Task<int>[shards.Length];
+        for (int i = 0; i < shards.Length; i++)
+        {
+            var shardResultsDir = Path.Combine(_resultsDirectory, $"Shard{i + 1}");
+            Directory.CreateDirectory(shardResultsDir);
+            string responseFilePath = Path.Combine(shardResultsDir, $"shard-filter-uids.rsp");
+            using (var stream = new FileStream(responseFilePath, FileMode.Create, FileAccess.Write))
+            using (var writer = new StreamWriter(stream))
+            {
+                await writer.WriteAsync($"--filter-uid").ConfigureAwait(false);
+                foreach (DiscoveredTestInformation testInfo in shards[i])
+                {
+                    await writer.WriteAsync($" \"{testInfo.Uid}\"").ConfigureAwait(false);
+                }
+            }
 
+            var shardArgs = new List<string>(commonChildArgs)
+            {
+                "--results-directory",
+                shardResultsDir,
+                $"@{responseFilePath}",
+            };
+
+#if !NETCOREAPP
+            var builder = new StringBuilder();
+            foreach (var shardArg in shardArgs)
+            {
+                PasteArguments.AppendArgument(builder, shardArg);
+            }
+#endif
+
+            var processStartInfo = new ProcessStartInfo(filePath)
+            {
+                UseShellExecute = false,
+                WorkingDirectory = Environment.CurrentDirectory,
+#if !NETCOREAPP
+                Arguments = builder.ToString(),
+#endif
+            };
+
+#if NETCOREAPP
+            foreach (var shardArg in shardArgs)
+            {
+                processStartInfo.ArgumentList.Add(shardArg);   
+            }
+#endif
+
+            var process = Process.Start(processStartInfo);
+            tasks[i] = WaitForExitAsync(process!);
+        }
+
+        var exitCodes = await Task.WhenAll(tasks);
+        int? aggregatedExitCode = null;
+        foreach (var exitCode in exitCodes)
+        {
+            if (aggregatedExitCode is null)
+            {
+                aggregatedExitCode = exitCode;
+            }
+            else if (aggregatedExitCode.Value != exitCode)
+            {
+                if (aggregatedExitCode == 0)
+                {
+                    aggregatedExitCode = exitCode;
+                }
+                else if (exitCode != 0)
+                {
+                    aggregatedExitCode = 1;
+                }
+            }
+        }
+
+        return aggregatedExitCode ?? 1;
+    }
+
+    private static async Task<int> WaitForExitAsync(Process process)
+    {
+        await Task.Yield();
+#if NETCOREAPP
+        await process.WaitForExitAsync();
+#else
+        try
+        {
+            process.EnableRaisingEvents = true;
+        }
+        catch (InvalidOperationException)
+        {
+            // CASE 2: If the process has exited, our work is done, otherwise bubble the
+            // exception up to the user
+            if (process.HasExited)
+            {
+                return process.ExitCode;
+            }
+
+            throw;
+        }
+
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        EventHandler handler = (_, _) => tcs.TrySetResult(null);
+        process.Exited += handler;
+
+        try
+        {
+            if (!process.HasExited)
+            {
+                await tcs.Task.ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            process.Exited -= handler;
+        }
+#endif
+
+        return process.ExitCode;
     }
 }
