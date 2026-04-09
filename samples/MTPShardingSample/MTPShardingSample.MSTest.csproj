@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <EnableMSTestRunner>true</EnableMSTestRunner>
-    <GenerateTestingPlatformEntryPoint>false</GenerateTestingPlatformEntryPoint>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);IDE0005</NoWarn>
   </PropertyGroup>

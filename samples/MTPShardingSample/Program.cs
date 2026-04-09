@@ -4,18 +4,6 @@ using MTPShardingSample.MSTest;
 using YTest.MTP.Sharding;
 using YTest.MTP.PipeProtocol;
 
-// Environment.SetEnvironmentVariable("DOTNET_ROOT", "C:\\Users\\ygerges\\Desktop\\aspire\\.dotnet");
-
-// var discoverer = new MTPPipeDiscoverer("C:\\Users\\ygerges\\Desktop\\aspire\\artifacts\\bin\\Aspire.Cli.Tests\\Debug\\net8.0\\Aspire.Cli.Tests.exe", "");
-// var result = await discoverer.DiscoverTestsAsync();
-
-ITestApplicationBuilder builder = await TestApplication.CreateBuilderAsync(args);
-SelfRegisteredExtensions.AddSelfRegisteredExtensions(builder, args);
-
-using ITestApplication app = await builder.BuildAsync();
-
-return await app.RunAsync();
-
 /// <summary>
 /// Dummy test class. Serves as a playgound.
 /// </summary>
@@ -25,50 +13,60 @@ public class MyTestClass
     [TestMethod]
     public void TestMethod1()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod2()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod3()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod4()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod5()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod6()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod7()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod8()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod9()
     {
+        Thread.Sleep(10000);
     }
 
     [TestMethod]
     public void TestMethod10()
     {
+        Thread.Sleep(10000);
     }
 }

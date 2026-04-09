@@ -44,7 +44,6 @@ internal sealed class ShardingOrchestrator : ITestHostExecutionOrchestrator
 
     public async Task<int> OrchestrateTestHostExecutionAsync(CancellationToken cancellationToken)
     {
-        Debugger.Launch();
 #if NETSTANDARD || NETFRAMEWORK
         string filePath;
         using (var process = Process.GetCurrentProcess())
@@ -83,6 +82,16 @@ internal sealed class ShardingOrchestrator : ITestHostExecutionOrchestrator
 
         for (int i = 0; i < currentArgs.Length; i++)
         {
+            if (currentArgs[i] == "--server")
+            {
+                // Each child process gets its own instance id.
+                // But they all share the same execution id.
+                // This means dotnet test views this as "retries".
+                // We need to resolve this, somehow.
+                Console.WriteLine("Sharding isn't supported when running under dotnet test");
+                return 1;
+            }
+
             if (currentArgs[i] is "--results-directory" or "--shard-count")
             {
                 i++;
