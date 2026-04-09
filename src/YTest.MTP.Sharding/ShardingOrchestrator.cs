@@ -21,7 +21,7 @@ internal sealed class ShardingOrchestrator : ITestHostExecutionOrchestrator
 {
     private readonly string _resultsDirectory;
     private readonly int? _shardCount;
-    
+
     public ShardingOrchestrator(ICommandLineOptions commandLineOptions, IConfiguration configuration)
     {
         _resultsDirectory = configuration.GetTestResultDirectory();
